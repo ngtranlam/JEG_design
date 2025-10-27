@@ -1,0 +1,116 @@
+name: Build Windows App
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache Python dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~\AppData\Local\pip\Cache
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Verify resources exist
+        shell: bash
+        run: |
+          test -d upscayl_core || (echo "Missing upscayl_core" && exit 1)
+          test -f jeg_design_extract.py || (echo "Missing entry script" && exit 1)
+          test -f jeglogo.png || (echo "Missing logo file" && exit 1)
+          test -f app_icon.ico || (echo "Missing app icon ICO file" && exit 1)
+          test -f gemini_client.py || (echo "Missing gemini_client.py" && exit 1)
+          test -f photoroom_client.py || (echo "Missing photoroom_client.py" && exit 1)
+          test -f upscayl_processor.py || (echo "Missing upscayl_processor.py" && exit 1)
+          test -f api_client.py || (echo "Missing api_client.py" && exit 1)
+          echo "All required resources found"
+
+      - name: Verify Python imports
+        run: |
+          python -c "import cv2; print('OpenCV imported')"
+          python -c "import PIL; print('Pillow imported')"
+          python -c "import numpy; print('NumPy imported')"
+          python -c "import requests; print('Requests imported')"
+          python -c "import google.genai; print('Google GenAI imported')"
+          python -c "from gemini_client import GeminiClient; print('GeminiClient imported')"
+          python -c "from photoroom_client import PhotoRoomClient; print('PhotoRoomClient imported')"
+          echo "All Python modules imported successfully"
+
+      - name: Build with PyInstaller (Windows)
+        run: |
+          pyinstaller windows_build.spec --clean --noconfirm --distpath=dist-windows
+
+      - name: Verify build output
+        shell: bash
+        run: |
+          if [ ! -f "dist-windows/JEGDesignExtract.exe" ]; then
+            echo "Build failed - executable not found"
+            echo "Contents of dist-windows directory:"
+            ls -la dist-windows/ || echo "Dist directory not found"
+            exit 1
+          fi
+          echo "Windows build successful!"
+          echo "Executable: $(ls -la dist-windows/JEGDesignExtract.exe)"
+          echo "Size: $(du -h dist-windows/JEGDesignExtract.exe | cut -f1)"
+
+      - name: Get build info
+        id: build_info
+        shell: bash
+        run: |
+          echo "build_date=$(date +'%Y%m%d_%H%M')" >> $GITHUB_OUTPUT
+          echo "commit_sha=${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT
+          if [ -f "version.txt" ]; then
+            echo "app_version=$(head -n1 version.txt)" >> $GITHUB_OUTPUT
+          else
+            echo "app_version=v2.2.0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Archive artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: JEGDesignExtract-windows-${{ steps.build_info.outputs.app_version }}-${{ steps.build_info.outputs.build_date }}-${{ steps.build_info.outputs.commit_sha }}
+          path: |
+            dist-windows/JEGDesignExtract.exe
+          retention-days: 30
+
+      - name: Build summary
+        run: |
+          echo "## Windows Build Completed Successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Build Information:" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version:** ${{ steps.build_info.outputs.app_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Build Date:** ${{ steps.build_info.outputs.build_date }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** ${{ steps.build_info.outputs.commit_sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Platform:** Windows" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Features Included:" >> $GITHUB_STEP_SUMMARY
+          echo "- Extract Design (Print & Embroidery modes)" >> $GITHUB_STEP_SUMMARY
+          echo "- PhotoRoom Background Removal for Embroidery" >> $GITHUB_STEP_SUMMARY
+          echo "- Gemini AI Integration" >> $GITHUB_STEP_SUMMARY
+          echo "- Video Generation with Veo3" >> $GITHUB_STEP_SUMMARY
+          echo "- AI Upscaling" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Download:" >> $GITHUB_STEP_SUMMARY
+          echo "The Windows executable is available in the artifacts section above." >> $GITHUB_STEP_SUMMARY
+
+
+
+

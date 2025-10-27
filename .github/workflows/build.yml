@@ -1,0 +1,184 @@
+name: Build Multi-Platform App
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+            executable_name: JEGDesignExtract.exe
+            upscayl_binary: upscayl-ncnn.exe
+          - os: macos-latest
+            platform: macos
+            executable_name: JEGDesignExtract
+            upscayl_binary: upscayl-ncnn
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Download Upscayl Windows binary (if needed)
+      if: matrix.platform == 'windows'
+      run: |
+        # Windows binary đã có sẵn trong repo, nhưng kiểm tra nếu thiếu
+        if [ ! -f "upscayl_core/bin/upscayl-ncnn.exe" ]; then
+          echo "Downloading Windows upscayl binary..."
+          python download_upscayl_windows.py
+        else
+          echo "Windows binary already exists"
+        fi
+      shell: bash
+
+    - name: Cache Python dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/pip
+          ~\AppData\Local\pip\Cache
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Verify Upscayl binary exists
+      run: |
+        if [ "${{ matrix.platform }}" == "windows" ]; then
+          if [ ! -f "upscayl_core/bin/upscayl-ncnn.exe" ]; then
+            echo "Windows binary not found!"
+            exit 1
+          fi
+          echo "Windows binary found: $(ls -la upscayl_core/bin/upscayl-ncnn.exe)"
+        else
+          if [ ! -f "upscayl_core/bin/upscayl-ncnn" ]; then
+            echo "macOS binary not found!"
+            exit 1
+          fi
+          echo "macOS binary found: $(ls -la upscayl_core/bin/upscayl-ncnn)"
+        fi
+        
+        # Verify logo and icon files exist
+        if [ ! -f "jeglogo.png" ]; then
+          echo "Logo file not found!"
+          exit 1
+        fi
+        echo "Logo file found: $(ls -la jeglogo.png)"
+        
+        # Verify new Python modules exist
+        if [ ! -f "gemini_client.py" ]; then
+          echo "gemini_client.py not found!"
+          exit 1
+        fi
+        if [ ! -f "photoroom_client.py" ]; then
+          echo "photoroom_client.py not found!"
+          exit 1
+        fi
+        echo "New Python modules found"
+        
+        if [ "${{ matrix.platform }}" == "windows" ]; then
+          if [ ! -f "app_icon.ico" ] && [ ! -f "app.ico" ]; then
+            echo "No ICO icon file found for Windows!"
+            exit 1
+          fi
+          echo "ICO icon file found for Windows"
+        else
+          if [ ! -f "app_icon.png" ] && [ ! -f "app.icns" ]; then
+            echo "No icon file found for macOS!"
+            exit 1
+          fi
+          echo "Icon file found for macOS"
+        fi
+      shell: bash
+
+    - name: Build executable with PyInstaller
+      run: |
+        if [ "${{ matrix.platform }}" == "windows" ]; then
+          # Use optimized spec file for Windows with antivirus-friendly settings
+          pyinstaller windows_build.spec --distpath=dist-windows --clean --noconfirm
+          
+          # Add attributes to make it look more legitimate
+          if [ -f "dist-windows/JEGDesignExtract.exe" ]; then
+            echo "Windows executable built successfully"
+            echo "File size: $(du -h dist-windows/JEGDesignExtract.exe | cut -f1)"
+          fi
+        else
+          # Use command line for macOS (simpler)
+          pyinstaller --onefile \
+            --windowed \
+            --name=JEGDesignExtract \
+            --icon=app_icon.png \
+            --add-data="jeglogo.png:." \
+            --add-data="upscayl_core:upscayl_core" \
+            --add-data="api_client.py:." \
+            --add-data="upscayl_processor.py:." \
+            --add-data="gemini_client.py:." \
+            --add-data="photoroom_client.py:." \
+            --hidden-import=cv2.cv2 \
+            --hidden-import=numpy.core.multiarray \
+            --hidden-import=PIL._tkinter_finder \
+            --hidden-import=google.genai \
+            --hidden-import=requests \
+            --distpath=dist-macos \
+            --clean \
+            --noconfirm \
+            jeg_design_extract.py
+        fi
+      shell: bash
+
+    - name: Verify build output
+      run: |
+        if [ "${{ matrix.platform }}" == "windows" ]; then
+          DIST_PATH="dist-windows"
+          EXECUTABLE="JEGDesignExtract.exe"
+        else
+          DIST_PATH="dist-macos"
+          EXECUTABLE="JEGDesignExtract"
+        fi
+        
+        if [ ! -f "$DIST_PATH/$EXECUTABLE" ]; then
+          echo "Build failed - executable not found: $DIST_PATH/$EXECUTABLE"
+          echo "Contents of dist directory:"
+          ls -la $DIST_PATH/ || echo "Dist directory not found"
+          exit 1
+        fi
+        
+        echo "Build successful!"
+        echo "Executable: $(ls -la $DIST_PATH/$EXECUTABLE)"
+        echo "Size: $(du -h $DIST_PATH/$EXECUTABLE | cut -f1)"
+      shell: bash
+
+    - name: Get build info
+      id: build_info
+      shell: bash
+      run: |
+        echo "build_date=$(date +'%Y%m%d_%H%M')" >> $GITHUB_OUTPUT
+        echo "commit_sha=${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT
+        if [ -f "version.txt" ]; then
+          echo "app_version=$(head -n1 version.txt)" >> $GITHUB_OUTPUT
+        else
+          echo "app_version=v2.2.0" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: JEGDesignExtract-${{ matrix.platform }}-${{ steps.build_info.outputs.app_version }}-${{ steps.build_info.outputs.build_date }}-${{ steps.build_info.outputs.commit_sha }}
+        path: |
+          dist-${{ matrix.platform }}/${{ matrix.executable_name }}
+        retention-days: 30

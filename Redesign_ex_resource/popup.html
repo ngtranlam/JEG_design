@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      width: 320px;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #ffffff;
+      color: #333;
+      text-align: center;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      border: 1px solid rgba(0, 0, 0, 0.1);
+    }
+    
+    .header {
+      background: rgba(248, 250, 252, 0.8);
+      backdrop-filter: blur(10px);
+      padding: 32px 24px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    }
+    
+    .logo {
+      width: 100px;
+      height: 80px;
+      margin: 0 auto 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .logo img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    h1 {
+      margin: 0 0 8px 0;
+      font-size: 22px;
+      font-weight: 600;
+      color: #1a1a1a;
+      text-shadow: none;
+    }
+    
+    .subtitle {
+      font-size: 14px;
+      margin: 0;
+      color: #6b7280;
+      font-weight: 400;
+      line-height: 1.4;
+    }
+
+    .content {
+      padding: 24px;
+    }
+
+    .name-form {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .name-form.hidden {
+      display: none;
+    }
+
+    .login-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #1f2937;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      text-align: left;
+    }
+
+    .form-group label {
+      font-size: 14px;
+      font-weight: 500;
+      color: #374151;
+    }
+
+    .form-group input {
+      padding: 12px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border-color 0.2s;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: #3b82f6;
+    }
+
+    .form-group input.error {
+      border-color: #ef4444;
+    }
+
+    .error-message {
+      color: #ef4444;
+      font-size: 12px;
+      margin-top: 4px;
+      display: none;
+    }
+
+    .error-message.show {
+      display: block;
+    }
+
+    .save-btn {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-top: 8px;
+    }
+
+    .save-btn:hover {
+      background: #2563eb;
+    }
+
+    .save-btn:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+
+    .user-info {
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .user-info.show {
+      display: flex;
+    }
+
+    .welcome-text {
+      font-size: 16px;
+      font-weight: 500;
+      color: #1f2937;
+    }
+
+    .change-name-btn {
+      background: transparent;
+      color: #6b7280;
+      border: 1px solid #d1d5db;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .change-name-btn:hover {
+      background: #f9fafb;
+      border-color: #9ca3af;
+    }
+
+    .usage-info {
+      background: rgba(59, 130, 246, 0.05);
+      border: 1px solid rgba(59, 130, 246, 0.1);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin: 12px 0;
+      text-align: center;
+    }
+
+    .usage-text {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1f2937;
+      margin-bottom: 4px;
+    }
+
+    .usage-text span {
+      color: #3b82f6;
+      font-weight: 700;
+    }
+
+    .usage-subtitle {
+      font-size: 12px;
+      color: #6b7280;
+      font-weight: 400;
+    }
+    
+    .footer {
+      padding: 20px 24px;
+      background: rgba(248, 250, 252, 0.5);
+      border-top: 1px solid rgba(0, 0, 0, 0.1);
+      font-size: 12px;
+      color: #6b7280;
+    }
+    
+    .status-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: #10b981;
+      border-radius: 50%;
+      margin-right: 6px;
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.6; }
+      100% { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">
+      <img src="icons/1666710416.logo1_.png" alt="JEG Logo">
+    </div>
+    <h1>JEG Redesign tool</h1>
+    <p class="subtitle">Extract design, create mockups automatically</p>
+  </div>
+  
+  <div class="content">
+    <!-- Name and login form -->
+    <div class="name-form" id="nameForm">
+      <div class="login-title">Login with your JEG Account</div>
+      <div class="form-group">
+        <label for="userName">Your Name:</label>
+        <input type="text" id="userName" placeholder="e.g. John Smith" maxlength="50">
+      </div>
+      <div class="form-group">
+        <label for="username">Username:</label>
+        <input type="text" id="username" placeholder="Enter your username" maxlength="50">
+      </div>
+      <div class="form-group">
+        <label for="password">Password:</label>
+        <input type="password" id="password" placeholder="Enter your password" maxlength="50">
+      </div>
+      <div class="error-message" id="errorMessage">Please fill in all fields</div>
+      <button class="save-btn" id="saveBtn">Save and Start</button>
+    </div>
+
+    <!-- Saved user information -->
+    <div class="user-info" id="userInfo">
+      <div class="welcome-text">Hello, <span id="displayName"></span>!</div>
+      <div class="usage-info">
+        <div class="usage-text">Design extractions: <span id="usageCount">0</span></div>
+        <div class="usage-subtitle">Total times you've extracted designs</div>
+      </div>
+      <button class="change-name-btn" id="changeNameBtn">Change Info</button>
+    </div>
+  </div>
+  
+  <div class="footer">
+    <span class="status-indicator"></span>
+    <span id="statusText">Please enter your information to start</span>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html> 

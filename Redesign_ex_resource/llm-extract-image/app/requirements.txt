@@ -1,0 +1,13 @@
+openai
+pillow 
+rembg 
+numpy
+opencv-python-headless
+onnxruntime
+requests
+matplotlib
+bcrypt
+fastapi
+uvicorn[standard]
+python-multipart
+ 
