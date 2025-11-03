@@ -549,6 +549,7 @@ class JEGDesignExtractGUI:
                 'text_gray': '#AAAAAA',
                 'button_bg': '#0078D4',
                 'button_hover': '#106ebe',
+                'success': '#28A745',  # Green color for success button
                 'error': '#DC3545'  # Red color for error/cancel button
             }
         else:
@@ -561,6 +562,7 @@ class JEGDesignExtractGUI:
                 'text_gray': '#AAAAAA',
                 'button_bg': '#007AFF',
                 'button_hover': '#005cbf',
+                'success': '#28A745',  # Green color for success button
                 'error': '#DC3545'  # Red color for error/cancel button
             }
         
@@ -2928,7 +2930,7 @@ class JEGDesignExtractGUI:
         
         # Processing mode variables (API mode only)
         self.processing_type_var = tk.StringVar(value="print")  # print or embroidery
-        self.gemini_api_key_var = tk.StringVar(value="AIzaSyCxLhTOD-sMtaIYdw9CTKc4QVo1PHnDFpg")
+        self.gemini_api_key_var = tk.StringVar(value="")
         
         
 
@@ -4089,6 +4091,27 @@ class JEGDesignExtractGUI:
         except Exception as e:
             self.add_log(f"❌ Error deleting image: {str(e)}")
         
+    def load_api_key(self, show_log=True):
+        """Load API key from user manager"""
+        try:
+            api_key = self.user_manager.get_api_key("google_gemini")
+            if api_key:
+                self.gemini_api_key_var.set(api_key)
+                if show_log:
+                    self.add_log("🔑 API key loaded successfully")
+                # Debug log
+                print(f"Debug: API key loaded successfully, length: {len(api_key)}")
+            else:
+                self.gemini_api_key_var.set("")  # Clear API key from memory when not found
+                if show_log:
+                    self.add_log("⚠️ No API key configured. Please set up in Account tab.")
+                print("Debug: No API key found in storage")
+        except Exception as e:
+            self.gemini_api_key_var.set("")  # Clear API key from memory on error
+            if show_log:
+                self.add_log(f"❌ Error loading API key: {e}")
+            print(f"Debug: Error loading API key: {e}")
+        
     def verify_dpi(self, file_path):
         """Verify that saved file has correct DPI"""
         try:
@@ -5050,6 +5073,9 @@ class JEGDesignExtractGUI:
             # Refresh account tab if it exists
             if hasattr(self, 'account_tab'):
                 self.account_tab.refresh_data()
+            
+            # Load API key after successful login
+            self.load_api_key()
         else:
             # Login cancelled, close application
             self.add_log("Login required. Closing application...")
@@ -5068,7 +5094,7 @@ class JEGDesignExtractGUI:
     
     def create_account_ui(self, parent):
         """Create the Account tab UI"""
-        self.account_tab = AccountTab(parent, self.user_manager, self.colors)
+        self.account_tab = AccountTab(parent, self.user_manager, self.colors, main_app=self)
     
     def create_mockup_ui(self, parent):
         """Create main content area for the 'Mockup' tab."""

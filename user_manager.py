@@ -48,6 +48,7 @@ class UserManager:
         self.data_dir = self._get_data_directory()
         self.users_file = self.data_dir / "users.json"
         self.session_file = self.data_dir / "session.json"
+        self.api_keys_file = self.data_dir / "api_keys.json"
         self.device_id_file = self.data_dir / "device_id.txt"
         
         # Initialize data files
@@ -625,3 +626,54 @@ class UserManager:
             print(f"Invalid session data: {e}")
             self._clear_session_file()
             return False
+    
+    # API Key Management Methods
+    def save_api_key(self, service: str, api_key: str) -> bool:
+        """Save API key for a specific service"""
+        try:
+            api_keys = self._load_api_keys()
+            api_keys[service] = api_key
+            
+            with open(self.api_keys_file, 'w') as f:
+                json.dump(api_keys, f, indent=2)
+            return True
+        except Exception as e:
+            print(f"Error saving API key: {e}")
+            return False
+    
+    def get_api_key(self, service: str) -> Optional[str]:
+        """Get API key for a specific service"""
+        try:
+            api_keys = self._load_api_keys()
+            return api_keys.get(service)
+        except Exception as e:
+            print(f"Error loading API key: {e}")
+            return None
+    
+    def has_api_key(self, service: str) -> bool:
+        """Check if API key exists for a service"""
+        return self.get_api_key(service) is not None
+    
+    def delete_api_key(self, service: str) -> bool:
+        """Delete API key for a specific service"""
+        try:
+            api_keys = self._load_api_keys()
+            if service in api_keys:
+                del api_keys[service]
+                with open(self.api_keys_file, 'w') as f:
+                    json.dump(api_keys, f, indent=2)
+            return True
+        except Exception as e:
+            print(f"Error deleting API key: {e}")
+            return False
+    
+    def _load_api_keys(self) -> Dict[str, str]:
+        """Load API keys from file"""
+        try:
+            if self.api_keys_file.exists():
+                with open(self.api_keys_file, 'r') as f:
+                    return json.load(f)
+            return {}
+        except Exception as e:
+            print(f"Error loading API keys: {e}")
+            return {}

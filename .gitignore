@@ -25,3 +25,9 @@ env/
 ENV/
 .venv/
 .env/
+
+# API Keys and sensitive data
+api_keys.json
+session.json
+users.json
+device_id.txt

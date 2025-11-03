@@ -60,8 +60,8 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description='Reset user statistics')
-    parser.add_argument('username', nargs='?', default='minhductran1996', 
-                       help='Username to reset (default: minhductran1996)')
+    parser.add_argument('username', nargs='?', default='lamdev', 
+                       help='Username to reset (default: lamdev)')
     
     args = parser.parse_args()
     

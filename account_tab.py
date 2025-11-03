@@ -11,10 +11,11 @@ class AccountTab:
     Account tab for displaying user information and usage statistics
     """
     
-    def __init__(self, parent_frame, user_manager: UserManager, colors: dict):
+    def __init__(self, parent_frame, user_manager: UserManager, colors: dict, main_app=None):
         self.parent_frame = parent_frame
         self.user_manager = user_manager
         self.colors = colors
+        self.main_app = main_app  # Reference to main app for API key reload
         
         # Time filter state
         self.current_filter = "All Time"
@@ -48,11 +49,17 @@ class AccountTab:
         # Right column - Usage Statistics
         self.create_usage_stats_section(content_frame)
         
+        # API Key Setup section
+        self.create_api_key_section(main_container)
+        
         # Bottom section - Actions
         self.create_actions_section(main_container)
         
         # Initial data load
         self.refresh_data()
+        
+        # Update API status
+        self.update_api_status()
     
     def create_header_section(self, parent):
         """Create header section with user greeting"""
@@ -308,6 +315,110 @@ class AccountTab:
                                         bg=self.colors['accent'])
         self.total_cost_label.pack(pady=(5, 0))
     
+    def create_api_key_section(self, parent):
+        """Create API key setup section"""
+        api_frame = tk.Frame(parent, bg=self.colors['bg_light'], relief=tk.RAISED, bd=1)
+        api_frame.pack(fill=tk.X, pady=(20, 0))
+        
+        # Header
+        header_frame = tk.Frame(api_frame, bg=self.colors['bg_light'])
+        header_frame.pack(fill=tk.X, padx=20, pady=(15, 10))
+        
+        tk.Label(header_frame,
+                text="🔑 API Key Configuration",
+                font=('Arial', 14, 'bold'),
+                fg=self.colors['text_white'],
+                bg=self.colors['bg_light']).pack(side=tk.LEFT)
+        
+        # Content
+        content_frame = tk.Frame(api_frame, bg=self.colors['bg_light'])
+        content_frame.pack(fill=tk.X, padx=20, pady=(0, 15))
+        
+        # Google API Key section
+        google_frame = tk.Frame(content_frame, bg=self.colors['bg_light'])
+        google_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        tk.Label(google_frame,
+                text="Google Gemini API Key:",
+                font=('Arial', 10, 'bold'),
+                fg=self.colors['text_white'],
+                bg=self.colors['bg_light']).pack(side=tk.LEFT)
+        
+        # API Key status
+        self.api_status_label = tk.Label(google_frame,
+                                        text="Not configured",
+                                        font=('Arial', 10),
+                                        fg=self.colors['error'],
+                                        bg=self.colors['bg_light'])
+        self.api_status_label.pack(side=tk.RIGHT)
+        
+        # Input frame
+        input_frame = tk.Frame(content_frame, bg=self.colors['bg_light'])
+        input_frame.pack(fill=tk.X, pady=(5, 10))
+        
+        # API Key entry
+        self.api_key_entry = tk.Entry(input_frame,
+                                     font=('Arial', 10),
+                                     bg='white',
+                                     fg='black',
+                                     show='*',  # Hide API key like password
+                                     width=50)
+        self.api_key_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
+        
+        # Buttons frame
+        buttons_frame = tk.Frame(input_frame, bg=self.colors['bg_light'])
+        buttons_frame.pack(side=tk.RIGHT)
+        
+        # Save button
+        save_btn = tk.Button(buttons_frame,
+                            text="💾 Save",
+                            command=self.save_api_key,
+                            font=('Arial', 9, 'bold'),
+                            bg=self.colors['success'],
+                            fg='black',
+                            relief=tk.FLAT,
+                            bd=0,
+                            padx=10,
+                            pady=5,
+                            cursor='hand2')
+        save_btn.pack(side=tk.LEFT, padx=(0, 5))
+        
+        # Test button
+        test_btn = tk.Button(buttons_frame,
+                            text="🧪 Test",
+                            command=self.test_api_key,
+                            font=('Arial', 9, 'bold'),
+                            bg=self.colors['button_bg'],
+                            fg='black',
+                            relief=tk.FLAT,
+                            bd=0,
+                            padx=10,
+                            pady=5,
+                            cursor='hand2')
+        test_btn.pack(side=tk.LEFT, padx=(0, 5))
+        
+        # Clear button
+        clear_btn = tk.Button(buttons_frame,
+                             text="🗑️ Clear",
+                             command=self.clear_api_key,
+                             font=('Arial', 9, 'bold'),
+                             bg=self.colors['error'],
+                             fg='black',
+                             relief=tk.FLAT,
+                             bd=0,
+                             padx=10,
+                             pady=5,
+                             cursor='hand2')
+        clear_btn.pack(side=tk.LEFT)
+        
+        # Help text
+        help_label = tk.Label(content_frame,
+                             text="💡 Get your API key from: https://aistudio.google.com/app/apikey",
+                             font=('Arial', 9, 'italic'),
+                             fg=self.colors['text_gray'],
+                             bg=self.colors['bg_light'])
+        help_label.pack(anchor='w', pady=(5, 0))
+    
     def create_actions_section(self, parent):
         """Create actions section"""
         actions_frame = tk.Frame(parent, bg=self.colors['bg_light'], relief=tk.RAISED, bd=1, height=80)
@@ -538,3 +649,90 @@ class AccountTab:
         if self.refresh_timer:
             self.parent_frame.after_cancel(self.refresh_timer)
             self.refresh_timer = None
+    
+    # API Key Management Methods
+    def save_api_key(self):
+        """Save the API key"""
+        api_key = self.api_key_entry.get().strip()
+        
+        if not api_key:
+            messagebox.showerror("Error", "Please enter an API key")
+            return
+        
+        if not api_key.startswith("AIza"):
+            messagebox.showerror("Error", "Invalid Google API key format. It should start with 'AIza'")
+            return
+        
+        # Save to user manager
+        if self.user_manager.save_api_key("google_gemini", api_key):
+            messagebox.showinfo("Success", "API key saved successfully!")
+            self.update_api_status()
+            self.api_key_entry.delete(0, tk.END)  # Clear input for security
+            
+            # Notify main app to reload API key
+            self.reload_main_app_api_key()
+        else:
+            messagebox.showerror("Error", "Failed to save API key")
+    
+    def test_api_key(self):
+        """Test the API key"""
+        api_key = self.api_key_entry.get().strip()
+        
+        if not api_key:
+            # Try to get saved API key
+            api_key = self.user_manager.get_api_key("google_gemini")
+            if not api_key:
+                messagebox.showerror("Error", "No API key to test. Please enter or save an API key first.")
+                return
+        
+        # Simple test - just check format for now
+        if api_key.startswith("AIza") and len(api_key) > 30:
+            messagebox.showinfo("Test Result", "✅ API key format looks valid!\n\nNote: Full functionality test requires actual API call.")
+        else:
+            messagebox.showerror("Test Result", "❌ API key format appears invalid")
+    
+    def clear_api_key(self):
+        """Clear the API key"""
+        if messagebox.askyesno("Confirm", "Are you sure you want to delete the saved API key?"):
+            if self.user_manager.delete_api_key("google_gemini"):
+                messagebox.showinfo("Success", "API key deleted successfully!")
+                self.api_key_entry.delete(0, tk.END)
+                self.update_api_status()
+                
+                # Clear API key from main app memory as well
+                self.clear_main_app_api_key()
+            else:
+                messagebox.showerror("Error", "Failed to delete API key")
+    
+    def update_api_status(self):
+        """Update API key status display"""
+        if self.user_manager.has_api_key("google_gemini"):
+            self.api_status_label.config(
+                text="✅ Configured",
+                fg=self.colors['success']
+            )
+        else:
+            self.api_status_label.config(
+                text="❌ Not configured",
+                fg=self.colors['error']
+            )
+    
+    def reload_main_app_api_key(self):
+        """Notify main app to reload API key"""
+        if self.main_app and hasattr(self.main_app, 'load_api_key'):
+            try:
+                self.main_app.load_api_key(show_log=False)  # Don't spam log when reloading
+                # Debug: Check if API key was actually loaded
+                current_key = self.main_app.gemini_api_key_var.get()
+                print(f"Debug: API key reloaded, length: {len(current_key) if current_key else 0}")
+            except Exception as e:
+                print(f"Error reloading API key in main app: {e}")
+    
+    def clear_main_app_api_key(self):
+        """Clear API key from main app memory"""
+        if self.main_app and hasattr(self.main_app, 'gemini_api_key_var'):
+            try:
+                self.main_app.gemini_api_key_var.set("")  # Clear the API key from memory
+                print("API key cleared from main app memory")
+            except Exception as e:
+                print(f"Error clearing API key from main app: {e}")
