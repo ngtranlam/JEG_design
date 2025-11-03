@@ -17,6 +17,9 @@ class UserManager:
     IMAGE_PROCESSING_COST = 0.0203  # $0.0203 per image processing
     VIDEO_GENERATION_COST = 6.4     # $6.4 per video generation
     
+    # Session configuration
+    SESSION_DURATION_HOURS = 5  # Login session lasts for 5 hours
+    
     # Default password for all users
     DEFAULT_PASSWORD = "jeg@12345"
     
@@ -169,14 +172,20 @@ class UserManager:
         
         self._save_users_data(users_data)
         
-        # Set current user (no session saving)
+        # Set current user and save session with 5-hour expiration
         self.current_user = username
+        login_time = datetime.now()
+        expiry_time = login_time + timedelta(hours=self.SESSION_DURATION_HOURS)
+        
         self.session_data = {
             "username": username,
-            "login_time": datetime.now().isoformat(),
+            "login_time": login_time.isoformat(),
+            "expiry_time": expiry_time.isoformat(),
             "device_id": self.device_id
         }
-        # Don't save session to force login every time
+        
+        # Save session to file for 5-hour persistence
+        self._save_session_data(self.session_data)
         
         return True, "Login successful"
     
@@ -539,26 +548,80 @@ class UserManager:
         self.current_user = None
         self.session_data = {}
         
-        # Clear session file (ensure no session is saved)
-        try:
-            if self.session_file.exists():
-                self.session_file.unlink()
-        except:
-            pass
+        # Clear session file
+        self._clear_session_file()
     
     def is_logged_in(self) -> bool:
         """Check if user is currently logged in"""
         return self.current_user is not None
+    
+    def _clear_session_file(self):
+        """Clear the session file"""
+        try:
+            if self.session_file.exists():
+                self.session_file.unlink()
+        except Exception as e:
+            print(f"Error clearing session file: {e}")
+    
+    def get_session_info(self) -> Optional[Dict]:
+        """Get current session information including expiry time"""
+        if not self.session_data:
+            return None
+        
+        session_info = self.session_data.copy()
+        
+        # Add time remaining if session has expiry
+        if "expiry_time" in session_info:
+            try:
+                expiry_time = datetime.fromisoformat(session_info["expiry_time"])
+                current_time = datetime.now()
+                time_remaining = expiry_time - current_time
+                
+                if time_remaining.total_seconds() > 0:
+                    hours, remainder = divmod(int(time_remaining.total_seconds()), 3600)
+                    minutes, _ = divmod(remainder, 60)
+                    session_info["time_remaining"] = f"{hours}h {minutes}m"
+                else:
+                    session_info["time_remaining"] = "Expired"
+            except ValueError:
+                session_info["time_remaining"] = "Unknown"
+        
+        return session_info
     
     def get_current_user(self) -> Optional[str]:
         """Get current logged in username"""
         return self.current_user
     
     def restore_session(self) -> bool:
-        """Restore session from saved data"""
+        """Restore session from saved data if not expired"""
         session_data = self._load_session_data()
-        if session_data and "username" in session_data:
+        
+        if not session_data or "username" not in session_data:
+            return False
+        
+        # Check if session has expiry_time (for backward compatibility)
+        if "expiry_time" not in session_data:
+            # Old session format, require re-login
+            self._clear_session_file()
+            return False
+        
+        try:
+            # Check if session has expired
+            expiry_time = datetime.fromisoformat(session_data["expiry_time"])
+            current_time = datetime.now()
+            
+            if current_time > expiry_time:
+                # Session expired, clear it
+                self._clear_session_file()
+                return False
+            
+            # Session is still valid
             self.current_user = session_data["username"]
             self.session_data = session_data
             return True
-        return False
+            
+        except (ValueError, KeyError) as e:
+            # Invalid session data, clear it
+            print(f"Invalid session data: {e}")
+            self._clear_session_file()
+            return False

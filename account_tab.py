@@ -134,6 +134,7 @@ class AccountTab:
         details = [
             ("Username:", "username_value"),
             ("Account Status:", "status_value"),
+            ("Session Expires:", "session_expires_value"),
             ("Member Since:", "member_since_value"),
             ("Last Login:", "last_login_value"),
             ("Device ID:", "device_id_value")
@@ -388,6 +389,17 @@ class AccountTab:
                 self.info_labels["last_login_value"].config(text="First login")
         except:
             self.info_labels["last_login_value"].config(text="--")
+        
+        # Session information
+        session_info = self.user_manager.get_session_info()
+        if session_info and "time_remaining" in session_info:
+            time_remaining = session_info["time_remaining"]
+            if time_remaining == "Expired":
+                self.info_labels["session_expires_value"].config(text="⚠️ Expired", fg=self.colors['error'])
+            else:
+                self.info_labels["session_expires_value"].config(text=f"⏰ {time_remaining}", fg=self.colors['accent'])
+        else:
+            self.info_labels["session_expires_value"].config(text="--", fg=self.colors['text_gray'])
         
         # Device ID (truncated)
         device_id = self.user_manager.device_id[:8] + "..."

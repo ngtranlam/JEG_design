@@ -844,183 +844,440 @@ class JEGDesignExtractGUI:
         self.show_page("extract")
         
     def create_upscale_ui(self, parent):
-        """Create the redesigned UI for the Upscale tab, mimicking the Redesign tab layout."""
-        # --- Main layout frames ---
-        upscale_area = Frame(parent, bg=self.colors['bg_medium'])
-        upscale_area.pack(fill=tk.BOTH, expand=True)
+        """Create the redesigned UI for the Upscale tab, mimicking the Extract tab layout."""
+        # This function now populates the given 'parent' frame
+        main_area = Frame(parent, bg=self.colors['bg_medium'])
+        main_area.pack(fill=tk.BOTH, expand=True)
+        
+        # Main content panels (expanded to fill more space)
+        self.create_upscale_content_panels(main_area)
+        
+        # Bottom section
+        self.create_upscale_bottom_section(main_area)
+        
+        # Footer
+        self.create_upscale_footer(main_area)
+        
+    def create_upscale_content_panels(self, parent):
+        """Create main content panels for Upscale tab using a grid layout for equal sizing."""
+        # Initialize gallery data structures and variables
+        self.upscale_original_gallery_items = []
+        self.upscale_processed_gallery_items = []
+        self.upscale_batch_mode_var = tk.BooleanVar(value=False)
+        self.upscale_active_item_frame = None
+        
+        # Initialize upscale-specific variables
+        self.upscale_image_path = None
+        self.upscale_original_image = None
+        self.upscale_processed_image = None
+        self.upscale_tk_original = None
+        self.upscale_tk_processed = None
+        
+        content_frame = Frame(parent, bg=self.colors['bg_medium'])
+        content_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(20, 10))
 
-        header = Frame(upscale_area, bg=self.colors['bg_medium'], height=60)
-        header.pack(fill=tk.X, padx=20, pady=(10, 5))
-        header.pack_propagate(False)
-
-        content_frame = Frame(upscale_area, bg=self.colors['bg_medium'])
-        content_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+        # Configure the grid to have two equally sized columns
         content_frame.grid_columnconfigure(0, weight=1)
         content_frame.grid_columnconfigure(1, weight=1)
         content_frame.grid_rowconfigure(0, weight=1)
-
-        self.create_upscale_bottom_section(upscale_area)
-
-        # --- Variables ---
-        self.upscale_image_path = None
-        self.upscale_original_image = None
-        self.upscale_processed_image = None
-        self.upscale_tk_original = None
-        self.upscale_tk_processed = None
-
-        # --- Header ---
-        model_frame = Frame(header, bg=self.colors['bg_medium'])
-        model_frame.pack(side=tk.LEFT, padx=(0, 20))
-        tk.Label(model_frame, text="AI MODEL", bg=self.colors['bg_medium'], fg=self.colors['text_white'], font=('Arial', 9, 'bold')).pack(anchor='w')
-        self.upscale_model_var = tk.StringVar()
-        upscale_model_dd = ttk.Combobox(model_frame, textvariable=self.upscale_model_var, state="readonly", width=20, font=('Arial', 10))
-        upscale_model_dd.pack(pady=(5,0))
         
-        models = [m.replace('.bin', '') for m in os.listdir(UPSCARYL_MODELS_PATH) if m.endswith('.bin')]
-        if models:
-            upscale_model_dd['values'] = models
-            self.upscale_model_var.set(models[0])
-
-        # Batch Mode checkbox
-        batch_mode_frame = Frame(header, bg=self.colors['bg_medium'])
-        batch_mode_frame.pack(side=tk.LEFT, padx=(0, 20), pady=(15,0))
-        self.upscale_batch_mode_var = tk.BooleanVar(value=False)
-        batch_mode_check = tk.Checkbutton(batch_mode_frame, text="Batch Mode", variable=self.upscale_batch_mode_var, bg=self.colors['bg_medium'], fg=self.colors['text_white'], selectcolor=self.colors['bg_dark'], font=('Arial', 10, 'bold'), activebackground=self.colors['bg_medium'], relief=tk.FLAT, bd=0, highlightthickness=0, command=self._toggle_original_image_checkboxes)
-        batch_mode_check.pack(anchor='w')
-
-        button_frame = Frame(header, bg=self.colors['bg_medium'])
-        button_frame.pack(side=tk.RIGHT)
-
-        tk.Button(button_frame, text="Browse...", command=self.browse_upscale_image, bg='#e0e0e0', fg='#000000', relief=tk.FLAT, bd=0, padx=15, pady=5, font=('Arial', 10, 'bold')).pack(side=tk.LEFT, padx=5, pady=(20,0))
-        tk.Button(button_frame, text="Clear", command=self.clear_upscale_widgets, bg='#e0e0e0', fg='#000000', relief=tk.FLAT, bd=0, padx=15, pady=5, font=('Arial', 10, 'bold')).pack(side=tk.LEFT, padx=5, pady=(20,0))
+        # Left panel - Original Image
+        left_panel = Frame(content_frame, bg=self.colors['bg_light'], relief=tk.RAISED, bd=1)
+        left_panel.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
         
-        # --- Content ---
-        # Original Image
-        original_panel = Frame(content_frame, bg=self.colors['bg_light'], relief=tk.RAISED, bd=1)
-        original_panel.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
-        original_panel.pack_propagate(False) # Prevent resizing
-        tk.Label(original_panel, text="Original Image", bg=self.colors['bg_light'], fg=self.colors['text_white'], font=('Arial', 12, 'bold'), pady=5).pack(fill=tk.X)
+        tk.Label(left_panel, text="Original Image (Select for Upscale)",
+                bg=self.colors['bg_light'], fg=self.colors['text_white'],
+                font=('Arial', 12, 'bold'), pady=5).pack(fill=tk.X)
         
-        self.upscale_original_canvas = tk.Canvas(original_panel, bg='black', bd=0, highlightthickness=0)
-        self.upscale_original_canvas.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0,10))
-        self.upscale_original_canvas.bind('<ButtonPress-1>', self.start_selection)
-        self.upscale_original_canvas.bind('<B1-Motion>', self.update_selection)
-        self.upscale_original_canvas.bind('<ButtonRelease-1>', self.end_selection)
-
-        # Upscaled Result
-        result_panel = Frame(content_frame, bg=self.colors['bg_light'], relief=tk.RAISED, bd=1)
-        result_panel.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
-        result_panel.pack_propagate(False) # Prevent resizing
-        tk.Label(result_panel, text="Upscaled Result", bg=self.colors['bg_light'], fg=self.colors['text_white'], font=('Arial', 12, 'bold'), pady=5).pack(fill=tk.X)
-        self.upscale_processed_label = tk.Label(result_panel, bg='black')
-        self.upscale_processed_label.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0,10))
-        # The save button is removed from here
+        self.upscale_original_canvas = Canvas(left_panel, bg='black')
+        self.upscale_original_canvas.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        
+        # Bind events for image interaction
+        self.upscale_original_canvas.bind("<Configure>", self.on_canvas_configure)
+        
+        # Right-click: Context menu for paste and browse
+        self.upscale_original_canvas.bind("<Button-3>", self.upscale_on_right_click)
+        
+        # Visual feedback
+        self.upscale_original_canvas.configure(cursor="crosshair")
+        
+        # Right panel - Upscaled Result
+        right_panel = Frame(content_frame, bg=self.colors['bg_light'], relief=tk.RAISED, bd=1)
+        right_panel.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
+        
+        right_header = Frame(right_panel, bg=self.colors['bg_light'])
+        right_header.pack(fill=tk.X, padx=5, pady=5)
+        
+        tk.Label(right_header, text="Upscaled Result",
+                bg=self.colors['bg_light'], fg=self.colors['text_white'],
+                font=('Arial', 12, 'bold')).pack(side=tk.LEFT)
+        
+        # Canvas for upscaled result
+        self.upscale_processed_canvas = Canvas(right_panel, bg='white')
+        self.upscale_processed_canvas.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        
+        # Progress bar and status label UI (similar to extract tab)
+        self.upscale_progress_frame = Frame(right_panel, bg=self.colors['bg_light'])
+        
+        self.upscale_progress_label = tk.Label(self.upscale_progress_frame, text="Processing...",
+                                      bg=self.colors['bg_light'], fg=self.colors['text_white'],
+                                      font=('Arial', 10, 'italic'))
 
     def create_upscale_bottom_section(self, parent):
-        """Creates the bottom section with lists and logs, mimicking the Redesign tab."""
-        # --- Data Structures for Galleries ---
-        self.upscale_original_gallery_items = []
-        self.upscale_processed_gallery_items = []
-
-        bottom_frame = Frame(parent, bg=self.colors['bg_medium'], height=130) # Reduced height
+        """Create bottom section with dual image lists and upscale options (no activity log)"""
+        bottom_frame = Frame(parent, bg=self.colors['bg_medium'], height=300)
         bottom_frame.pack(fill=tk.X, padx=20, pady=(0, 20))
-        bottom_frame.pack_propagate(False) # Enforce the height
-
-        bottom_frame.grid_columnconfigure(0, weight=1) 
-        bottom_frame.grid_columnconfigure(1, weight=1)
-        bottom_frame.grid_columnconfigure(2, weight=1)
-        bottom_frame.grid_rowconfigure(0, weight=1) # Allow the row to expand vertically
-
-        # --- Original Images Panel ---
-        original_images_panel = Frame(bottom_frame, bg=self.colors['bg_light'], relief=tk.RAISED, bd=1)
-        original_images_panel.grid(row=0, column=0, sticky='nsew', padx=(0, 10))
-        tk.Label(original_images_panel, text="Original Images", bg=self.colors['bg_light'], fg=self.colors['text_white'], font=('Arial', 11, 'bold'), pady=5).pack()
-        self.upscale_original_canvas = Canvas(original_images_panel, bg=self.colors['bg_dark'], highlightthickness=0)
-        original_scrollbar = ttk.Scrollbar(original_images_panel, orient="vertical", command=self.upscale_original_canvas.yview)
-        self.upscale_original_scrollable_frame = Frame(self.upscale_original_canvas, bg=self.colors['bg_dark'])
-        self.upscale_original_scrollable_frame.bind("<Configure>", lambda e: self.upscale_original_canvas.configure(scrollregion=self.upscale_original_canvas.bbox("all")))
-        self.upscale_original_canvas.create_window((0, 0), window=self.upscale_original_scrollable_frame, anchor="nw")
-        self.upscale_original_canvas.configure(yscrollcommand=original_scrollbar.set)
-        original_scrollbar.pack(side="right", fill="y")
-        self.upscale_original_canvas.pack(side="left", fill="both", expand=True)
-
-        # --- Processed Results Panel ---
-        processed_results_panel = Frame(bottom_frame, bg=self.colors['bg_light'], relief=tk.RAISED, bd=1)
-        processed_results_panel.grid(row=0, column=1, sticky='nsew', padx=(0, 10))
+        bottom_frame.pack_propagate(False)
         
-        processed_header = Frame(processed_results_panel, bg=self.colors['bg_light'])
-        processed_header.pack(fill=tk.X)
-        tk.Label(processed_header, text="Processed Results", bg=self.colors['bg_light'], fg=self.colors['text_white'], font=('Arial', 11, 'bold'), pady=5).pack(side=tk.LEFT, padx=10)
+        # Left side: Original Images + Processed Results
+        images_container = Frame(bottom_frame, bg=self.colors['bg_medium'])
+        images_container.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
         
-        processed_buttons = Frame(processed_header, bg=self.colors['bg_light'])
-        processed_buttons.pack(side=tk.RIGHT, padx=10)
-
-        btn_style = {"bg": "#FFFFFF", "fg": "#000000", "relief": tk.FLAT, "padx": 8, "pady": 2, "font": ('Arial', 9, 'bold'), "borderwidth": 0, "highlightthickness": 0}
-
-        tk.Button(processed_buttons, text="All", command=lambda: self.toggle_upscale_checkboxes(True), **btn_style).pack(side=tk.LEFT)
-        tk.Button(processed_buttons, text="None", command=lambda: self.toggle_upscale_checkboxes(False), **btn_style).pack(side=tk.LEFT, padx=5)
-        tk.Button(processed_buttons, text="Save Selected", command=self.save_selected_upscaled, **btn_style).pack(side=tk.LEFT)
-
-        self.upscale_processed_canvas = Canvas(processed_results_panel, bg=self.colors['bg_dark'], highlightthickness=0)
-        processed_scrollbar = ttk.Scrollbar(processed_results_panel, orient="vertical", command=self.upscale_processed_canvas.yview)
-        self.upscale_processed_scrollable_frame = Frame(self.upscale_processed_canvas, bg=self.colors['bg_dark'])
-        self.upscale_processed_scrollable_frame.bind("<Configure>", lambda e: self.upscale_processed_canvas.configure(scrollregion=self.upscale_processed_canvas.bbox("all")))
-        self.upscale_processed_canvas.create_window((0, 0), window=self.upscale_processed_scrollable_frame, anchor="nw")
-        self.upscale_processed_canvas.configure(yscrollcommand=processed_scrollbar.set)
-        processed_scrollbar.pack(side="right", fill="y")
-        self.upscale_processed_canvas.pack(side="left", fill="both", expand=True)
-
-        # --- Right side (log and process) ---
+        # Original Images (Left)
+        original_frame = Frame(images_container, bg=self.colors['bg_light'], relief=tk.RAISED, bd=1)
+        original_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
+        
+        # Header with title and buttons
+        original_header = Frame(original_frame, bg=self.colors['bg_light'])
+        original_header.pack(fill=tk.X, padx=10, pady=(5, 0))
+        
+        tk.Label(original_header, text="Original Images",
+                bg=self.colors['bg_light'], fg=self.colors['text_white'],
+                font=('Arial', 12, 'bold')).pack(side=tk.LEFT)
+        
+        # Action buttons
+        btn_frame = Frame(original_header, bg=self.colors['bg_light'])
+        btn_frame.pack(side=tk.RIGHT)
+        
+        tk.Button(btn_frame, text="Browse...", 
+                 bg='#e0e0e0', fg='#000000',
+                 relief=tk.FLAT, bd=0, padx=10, pady=3,
+                 font=('Arial', 9, 'bold'),
+                 highlightbackground='#cccccc',
+                 command=self.browse_upscale_image).pack(side=tk.LEFT, padx=(5, 2))
+        tk.Button(btn_frame, text="Clear All",
+                 bg='#e0e0e0', fg='#000000',
+                 relief=tk.FLAT, bd=0, padx=10, pady=3,
+                 font=('Arial', 9, 'bold'),
+                 highlightbackground='#cccccc',
+                 command=self.clear_upscale_widgets).pack(side=tk.LEFT, padx=(2, 5))
+        
+        # Scrollable original image list
+        original_scroll_frame = Frame(original_frame, bg=self.colors['bg_light'])
+        original_scroll_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        
+        # Container for original image list (scrollable frame instead of listbox)
+        self.upscale_list_container = Frame(original_scroll_frame, bg=self.colors['bg_dark'])
+        self.upscale_list_container.pack(fill=tk.BOTH, expand=True)
+        
+        # Create scrollable area for upscale images
+        self.upscale_canvas = Canvas(self.upscale_list_container, bg=self.colors['bg_dark'])
+        self.upscale_scrollbar = Scrollbar(self.upscale_list_container, orient="vertical", command=self.upscale_canvas.yview)
+        self.upscale_scrollable_frame = Frame(self.upscale_canvas, bg=self.colors['bg_dark'])
+        
+        self.upscale_scrollable_frame.bind(
+            "<Configure>",
+            lambda e: self.upscale_canvas.configure(scrollregion=self.upscale_canvas.bbox("all"))
+        )
+        
+        self.upscale_canvas.create_window((0, 0), window=self.upscale_scrollable_frame, anchor="nw")
+        self.upscale_canvas.configure(yscrollcommand=self.upscale_scrollbar.set)
+        
+        self.upscale_canvas.pack(side="left", fill="both", expand=True)
+        self.upscale_scrollbar.pack(side="right", fill="y")
+        
+        # Processed Results (Right)
+        processed_frame = Frame(images_container, bg=self.colors['bg_light'], relief=tk.RAISED, bd=1)
+        processed_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(5, 0))
+        
+        # Header with download controls
+        processed_header = Frame(processed_frame, bg=self.colors['bg_light'])
+        processed_header.pack(fill=tk.X, padx=5, pady=5)
+        
+        tk.Label(processed_header, text="Processed Results",
+                bg=self.colors['bg_light'], fg=self.colors['text_white'],
+                font=('Arial', 12, 'bold')).pack(side=tk.LEFT)
+        
+        # Download controls
+        download_controls = Frame(processed_header, bg=self.colors['bg_light'])
+        download_controls.pack(side=tk.RIGHT)
+        
+        tk.Button(download_controls, text="All", 
+                 bg='#e0e0e0', fg='#000000',
+                 relief=tk.FLAT, bd=0, padx=10, pady=3,
+                 font=('Arial', 9, 'bold'),
+                 highlightbackground='#cccccc',
+                 command=lambda: self.toggle_upscale_checkboxes(True)).pack(side=tk.LEFT, padx=(5, 2))
+        
+        tk.Button(download_controls, text="None", 
+                 bg='#e0e0e0', fg='#000000',
+                 relief=tk.FLAT, bd=0, padx=10, pady=3,
+                 font=('Arial', 9, 'bold'),
+                 highlightbackground='#cccccc',
+                 command=lambda: self.toggle_upscale_checkboxes(False)).pack(side=tk.LEFT, padx=(2, 5))
+        
+        # Separator
+        separator = Frame(download_controls, bg='#666666', width=1, height=15)
+        separator.pack(side=tk.LEFT, padx=5)
+        
+        # Save Results button
+        tk.Button(download_controls, text="Save Results",
+                 bg='#90ee90', fg='#000000',
+                 relief=tk.FLAT, bd=0, padx=10, pady=3,
+                 font=('Arial', 9, 'bold'),
+                 highlightbackground='#cccccc',
+                 command=self.save_selected_upscaled).pack(side=tk.LEFT, padx=(5, 5))
+        
+        # Scrollable processed results list
+        self.upscale_processed_scroll_frame = Frame(processed_frame, bg=self.colors['bg_light'])
+        self.upscale_processed_scroll_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        
+        # This will be populated dynamically
+        self.upscale_processed_list_container = Frame(self.upscale_processed_scroll_frame, bg=self.colors['bg_dark'])
+        self.upscale_processed_list_container.pack(fill=tk.BOTH, expand=True)
+        
+        # Right side - Upscale Options (replaces Activity Log)
         right_bottom = Frame(bottom_frame, bg=self.colors['bg_medium'])
-        right_bottom.grid(row=0, column=2, sticky='nsew')
-        right_bottom.rowconfigure(0, weight=1) # Allow log panel to expand
-        right_bottom.columnconfigure(0, weight=1)
+        right_bottom.pack(side=tk.RIGHT, fill=tk.Y, padx=(10, 0))
         
-        # Activity Log
-        log_panel = Frame(right_bottom, bg=self.colors['bg_light'], relief=tk.RAISED, bd=1)
-        log_panel.grid(row=0, column=0, sticky='nsew') # Changed back to nsew
-        log_panel.rowconfigure(1, weight=1)
-        log_panel.columnconfigure(0, weight=1)
-
-        tk.Label(log_panel, text="Activity Log", bg=self.colors['bg_light'], fg=self.colors['text_white'], font=('Arial', 11, 'bold'), pady=5).grid(row=0, column=0, columnspan=2, sticky='ew')
-        self.upscale_log_text = tk.Text(log_panel, bg=self.colors['bg_dark'], fg=self.colors['text_white'], state='disabled', wrap=tk.WORD, font=('Arial', 8), bd=0, highlightthickness=0) # Removed fixed height
-        self.upscale_log_text.grid(row=1, column=0, sticky='nsew', padx=(5,0), pady=5)
-        log_scroll = ttk.Scrollbar(log_panel, command=self.upscale_log_text.yview)
-        log_scroll.grid(row=1, column=1, sticky='ns', padx=(0,5), pady=5)
-        self.upscale_log_text['yscrollcommand'] = log_scroll.set
-
+        # Upscale Options Panel
+        options_panel = Frame(right_bottom, bg=self.colors['bg_light'], relief=tk.RAISED, bd=1, width=400)
+        options_panel.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        options_panel.pack_propagate(False)
+        
+        # Options content frame
+        options_content = Frame(options_panel, bg=self.colors['bg_light'])
+        options_content.pack(fill=tk.BOTH, expand=True, padx=15, pady=10)
+        
+        # Row 1: AI Model
+        model_row = Frame(options_content, bg=self.colors['bg_light'])
+        model_row.pack(fill=tk.X, pady=(0, 10))
+        
+        tk.Label(model_row, text="AI Model:",
+                bg=self.colors['bg_light'], fg=self.colors['text_white'],
+                font=('Arial', 10)).pack(side=tk.LEFT)
+        
+        self.upscale_model_var = tk.StringVar(value="digital-art-4x")
+        model_options = [
+            "digital-art-4x",
+            "high-fidelity-4x", 
+            "real-esrgan-4x",
+            "ultrasharp-4x"
+        ]
+        
+        self.upscale_model_dropdown = ttk.Combobox(model_row, textvariable=self.upscale_model_var,
+                                         values=model_options, state="readonly", width=15,
+                                         font=('Arial', 10))
+        self.upscale_model_dropdown.pack(side=tk.RIGHT)
+        
+        # Row 2: Scale Factor
+        scale_row = Frame(options_content, bg=self.colors['bg_light'])
+        scale_row.pack(fill=tk.X, pady=(0, 10))
+        
+        tk.Label(scale_row, text="Scale Factor:",
+                bg=self.colors['bg_light'], fg=self.colors['text_white'],
+                font=('Arial', 10)).pack(side=tk.LEFT)
+        
+        self.upscale_scale_var = tk.StringVar(value="4x")
+        scale_options = ["2x", "3x", "4x", "6x", "8x"]
+        
+        self.upscale_scale_dropdown = ttk.Combobox(scale_row, textvariable=self.upscale_scale_var,
+                                         values=scale_options, state="readonly", width=15,
+                                         font=('Arial', 10))
+        self.upscale_scale_dropdown.pack(side=tk.RIGHT)
+        
         # Processing
-        process_panel = Frame(right_bottom, bg=self.colors['bg_light'], relief=tk.RAISED, bd=1, height=70) # Reduced height
-        process_panel.grid(row=1, column=0, sticky='nsew', pady=(10, 0))
-        process_panel.pack_propagate(False)
-        self.upscale_progressbar = ttk.Progressbar(process_panel, mode='indeterminate')
-        self.upscale_progressbar.pack(fill=tk.X, padx=10, pady=5, side=tk.BOTTOM)
-        self.process_upscale_btn = tk.Button(process_panel, text="Process", command=self.process_upscale_image, bg='#e0e0e0', fg='#000000', relief=tk.FLAT, bd=0, font=('Arial', 9, 'bold'))
-        self.process_upscale_btn.pack(fill=tk.BOTH, padx=10, pady=10, expand=True)
+        processing_frame = Frame(right_bottom, bg=self.colors['bg_light'], relief=tk.RAISED, bd=1, height=80)
+        processing_frame.pack(fill=tk.X)
+        processing_frame.pack_propagate(False)
+        
+        # Progress bar
+        self.upscale_progressbar = ttk.Progressbar(processing_frame, mode='indeterminate')
+        self.upscale_progressbar.pack(fill=tk.X, padx=20, pady=(10, 5))
+        
+        # Upscale button
+        self.process_upscale_btn = tk.Button(processing_frame, text="Upscale Image",
+                                    bg='#90ee90', fg='#000000',
+                                    font=('Arial', 11, 'bold'),
+                                    relief=tk.FLAT, bd=0,
+                                    pady=5, command=self.process_upscale_image)
+        self.process_upscale_btn.pack(fill=tk.X, padx=20, pady=(0, 10))
+        
+    def create_upscale_footer(self, parent):
+        """Create footer with copyright for Upscale tab"""
+        footer = Frame(parent, bg=self.colors['bg_medium'], height=25)
+        footer.pack(fill=tk.X, padx=20, pady=(0, 10))
+        footer.pack_propagate(False)
+        
+        # Copyright label
+        copyright_label = tk.Label(footer, text="Copyright 2025 © JEG Technology",
+                                  bg=self.colors['bg_medium'],
+                                  fg=self.colors['text_gray'],
+                                  font=('Arial', 9, 'italic'))
+        copyright_label.pack(side=tk.LEFT, anchor='w')
 
     def clear_upscale_widgets(self):
         """Clears all widgets and data in the upscale tab."""
+        # Clear variables
         self.upscale_image_path = None
         self.upscale_original_image = None
         self.upscale_processed_image = None
         self.upscale_tk_original = None
         self.upscale_tk_processed = None
 
-        self.upscale_original_canvas.delete("all")
-        self.upscale_processed_label.config(image='')
+        # Clear canvases
+        if hasattr(self, 'upscale_original_canvas'):
+            self.upscale_original_canvas.delete("all")
+        if hasattr(self, 'upscale_processed_canvas'):
+            self.upscale_processed_canvas.delete("all")
         
-        for item in self.upscale_original_gallery_items:
-            item['frame'].destroy()
-        self.upscale_original_gallery_items.clear()
-
-        for item in self.upscale_processed_gallery_items:
-            item['frame'].destroy()
-        self.upscale_processed_gallery_items.clear()
+        # Clear original images scrollable frame
+        if hasattr(self, 'upscale_scrollable_frame'):
+            for widget in self.upscale_scrollable_frame.winfo_children():
+                widget.destroy()
+        
+        # Clear processed results container
+        if hasattr(self, 'upscale_processed_list_container'):
+            for widget in self.upscale_processed_list_container.winfo_children():
+                widget.destroy()
+                
+        # Clear gallery lists
+        if hasattr(self, 'upscale_original_gallery_items'):
+            self.upscale_original_gallery_items.clear()
+        if hasattr(self, 'upscale_processed_gallery_items'):
+            self.upscale_processed_gallery_items.clear()
+                
+    def on_upscale_image_select(self, event):
+        """Handle selection of image in upscale - deprecated since we use click handlers now"""
+        # This function is no longer used since we switched to scrollable frame with click handlers
+        pass
             
-        self.upscale_log_text.config(state='normal')
-        self.upscale_log_text.delete('1.0', tk.END)
-        self.upscale_log_text.config(state='disabled')
-        self.add_upscale_log("Cleared. Ready for new image.")
+    def upscale_on_right_click(self, event):
+        """Handle right-click on upscale canvas for context menu"""
+        # Create context menu
+        context_menu = tk.Menu(self.root, tearoff=0)
+        context_menu.add_command(label="Paste Image from Clipboard", command=self.upscale_paste_from_clipboard)
+        context_menu.add_separator()
+        context_menu.add_command(label="Browse Files...", command=self.browse_upscale_image)
+        
+        try:
+            context_menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            context_menu.grab_release()
+    
+    def upscale_paste_from_clipboard(self):
+        """Paste image from clipboard for upscale"""
+        try:
+            # Try to get image from clipboard using PIL
+            from PIL import ImageGrab
+            image = ImageGrab.grabclipboard()
+            if image:
+                # Save to temporary file
+                import tempfile
+                temp_file = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
+                image.save(temp_file.name)
+                temp_file.close()
+                
+                # Add to upscale gallery and display
+                self.upscale_add_image_files([temp_file.name])
+                self.add_upscale_log("📋 Pasted image from clipboard")
+                # Auto-select the pasted image
+                self.upscale_auto_select_pasted_image(temp_file.name)
+                return
+            
+            # Try to get file path from clipboard
+            try:
+                clipboard_data = self.root.clipboard_get()
+                if os.path.exists(clipboard_data):
+                    if clipboard_data.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tiff')):
+                        self.upscale_add_image_files([clipboard_data])
+                        self.add_upscale_log(f"📋 Pasted image from clipboard: {os.path.basename(clipboard_data)}")
+                        self.upscale_auto_select_pasted_image(clipboard_data)
+                        return
+            except tk.TclError:
+                pass
+                
+            self.add_upscale_log("❌ No valid image found in clipboard")
+            
+        except Exception as e:
+            self.add_upscale_log(f"❌ Error pasting from clipboard: {str(e)}")
+    
+    def upscale_add_image_files(self, file_paths):
+        """Add image files to upscale gallery"""
+        for path in file_paths:
+            try:
+                image_data = cv2.imread(path, cv2.IMREAD_UNCHANGED)
+                if image_data is None:
+                    self.add_upscale_log(f"   -> Failed to read {os.path.basename(path)}")
+                    continue
+
+                # Add to gallery
+                self._add_to_upscale_gallery(self.upscale_original_gallery_items, path)
+                self.add_upscale_log(f"Loaded: {os.path.basename(path)}")
+                
+                # If it's the first image, display it
+                if len(self.upscale_original_gallery_items) == 1:
+                    self.upscale_image_path = path
+                    self.upscale_original_image = image_data
+                    self._display_image_in_widget(self.upscale_original_image, self.upscale_original_canvas, "original")
+
+            except Exception as e:
+                self.add_upscale_log(f"Error loading {os.path.basename(path)}: {e}")
+    
+    def upscale_auto_select_pasted_image(self, file_path):
+        """Auto-select the pasted image by triggering click handler"""
+        try:
+            # Simply trigger the click handler to display the image
+            self.upscale_on_item_click(file_path)
+        except Exception as e:
+            print(f"Error auto-selecting pasted image: {e}")
+            
+    def upscale_on_item_click(self, image_path):
+        """Handle clicking on upscale item to view"""
+        try:
+            if os.path.exists(image_path):
+                # Load and display the image
+                image_data = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
+                if image_data is not None:
+                    self.upscale_image_path = image_path
+                    self.upscale_original_image = image_data
+                    self._display_image_in_widget(image_data, self.upscale_original_canvas, "original")
+                    self.add_upscale_log(f"📋 Viewing: {os.path.basename(image_path)}")
+                    
+                    # Clear processed view since we're viewing a different source
+                    self.upscale_processed_canvas.delete("all")
+                    self.upscale_processed_image = None
+        except Exception as e:
+            self.add_upscale_log(f"❌ Error viewing image: {str(e)}")
+            
+    def upscale_delete_image(self, image_path):
+        """Delete an image from upscale gallery"""
+        try:
+            filename = os.path.basename(image_path)
+            
+            # Find and remove from gallery list
+            for i, item in enumerate(self.upscale_original_gallery_items):
+                if item.get('path') == image_path:
+                    # Destroy the frame
+                    if 'frame' in item:
+                        item['frame'].destroy()
+                    
+                    # Remove from list
+                    self.upscale_original_gallery_items.pop(i)
+                    break
+            
+            # If this was the current image, clear it
+            if hasattr(self, 'upscale_image_path') and self.upscale_image_path == image_path:
+                self.upscale_image_path = None
+                self.upscale_original_image = None
+                self.upscale_original_canvas.delete("all")
+                self.upscale_processed_canvas.delete("all")
+                self.upscale_processed_image = None
+                
+            self.add_upscale_log(f"🗑️ Deleted: {filename}")
+            
+        except Exception as e:
+            self.add_upscale_log(f"❌ Error deleting image: {str(e)}")
 
     def create_video_gen_ui(self, parent):
         """Create the UI for the Video Gen tab with 4-frame layout."""
@@ -1855,11 +2112,10 @@ class JEGDesignExtractGUI:
             self.add_video_gen_log(f"Error stopping video playback: {str(e)}")
 
     def add_upscale_log(self, message):
-        """Adds a message to the upscale log text widget."""
-        self.upscale_log_text.config(state='normal')
-        self.upscale_log_text.insert(tk.END, f"[{time.strftime('%H:%M:%S')}] {message}\n")
-        self.upscale_log_text.config(state='disabled')
-        self.upscale_log_text.see(tk.END)
+        """Adds a message to the upscale log (console only since we removed the log widget)."""
+        timestamp = time.strftime('%H:%M:%S')
+        log_msg = f"[{timestamp}] {message}"
+        print(log_msg)
 
     def _on_gallery_item_click(self, item_data, is_processed):
         """Handles clicks on gallery items to display them and highlight selection."""
@@ -1888,7 +2144,7 @@ class JEGDesignExtractGUI:
         # --- Display Logic ---
         if is_processed:
             # Display the processed image on the right
-            self._display_image_in_widget(item_data['image_data'], self.upscale_processed_label, "processed")
+            self._display_image_in_widget(item_data['image_data'], self.upscale_processed_canvas, "processed")
             
             # Display the corresponding original image on the left for context
             try:
@@ -1910,7 +2166,7 @@ class JEGDesignExtractGUI:
                 self._display_image_in_widget(original_image, self.upscale_original_canvas, "original")
                 
                 # Clear the processed view since it's for a different source now
-                self.upscale_processed_label.config(image='')
+                self.upscale_processed_canvas.delete("all")
                 self.upscale_processed_image = None
                 self.upscale_tk_processed = None
 
@@ -1918,49 +2174,73 @@ class JEGDesignExtractGUI:
                 messagebox.showerror("Error", f"Failed to load image for preview: {e}")
 
     def _add_to_upscale_gallery(self, gallery_list, image_path, image_data=None, is_processed=False):
-        """Helper to add a new file item to a specified gallery."""
-        scrollable_frame = self.upscale_original_scrollable_frame if not is_processed else self.upscale_processed_scrollable_frame
-
-        item_frame = Frame(scrollable_frame, bg=self.colors['bg_dark'])
-        item_frame.pack(pady=2, padx=5, fill=tk.X)
-        
-        item_data = {"frame": item_frame, "path": image_path, "icon_label": None}
-        widgets_for_click_event = [item_frame]
-
-        var = tk.BooleanVar(value=False) # Default to not selected
-        chk = tk.Checkbutton(item_frame, text="", variable=var, bg=self.colors['bg_dark'], selectcolor=self.colors['bg_dark'], activebackground=self.colors['bg_dark'], relief=tk.FLAT)
-        item_data["checkbox_var"] = var
-
-        if is_processed:
-            item_data["image_data"] = image_data
-            chk.pack(side=tk.LEFT, padx=(5, 10))
-        else:
-            # For original images, the checkbox is created but not packed initially.
-            # It's managed by _toggle_original_image_checkboxes.
-            item_data["checkbox_widget"] = chk
-
+        """Helper to add a new file item to the upscale gallery."""
         filename = os.path.basename(image_path)
         
-        # Add icon before filename
-        icon_text = "🖼️" if not is_processed else "✨"  # Image icon for original, sparkle for processed
-        icon_label = tk.Label(item_frame, text=icon_text, bg=self.colors['bg_dark'], fg=self.colors['text_white'], font=('Arial', 10))
-        icon_label.pack(side=tk.LEFT, padx=(5, 2))
-        item_data["icon_label"] = icon_label  # Store icon label reference
-        
-        filename_label = tk.Label(item_frame, text=filename, bg=self.colors['bg_dark'], fg=self.colors['text_white'], anchor='w', wraplength=400, justify=tk.LEFT)
-        filename_label.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=2)
-        
-        if not is_processed:
-            item_data["filename_label"] = filename_label # Store ref for re-ordering
-        
-        widgets_for_click_event.append(filename_label)
-        widgets_for_click_event.append(icon_label)  # Add icon label to click events
+        if is_processed:
+            # Add to processed results container
+            item_frame = Frame(self.upscale_processed_list_container, bg=self.colors['bg_dark'])
+            item_frame.pack(pady=2, padx=5, fill=tk.X)
+            
+            # Checkbox for selection
+            var = tk.BooleanVar(value=False)
+            chk = tk.Checkbutton(item_frame, text="", variable=var, 
+                               bg=self.colors['bg_dark'], selectcolor=self.colors['bg_dark'], 
+                               activebackground=self.colors['bg_dark'], relief=tk.FLAT)
+            chk.pack(side=tk.LEFT, padx=(5, 10))
+            
+            # Icon and filename
+            icon_label = tk.Label(item_frame, text="✨", bg=self.colors['bg_dark'], 
+                                fg=self.colors['text_white'], font=('Arial', 10))
+            icon_label.pack(side=tk.LEFT, padx=(5, 2))
+            
+            filename_label = tk.Label(item_frame, text=filename, bg=self.colors['bg_dark'], 
+                                    fg=self.colors['text_white'], anchor='w', wraplength=400, justify=tk.LEFT)
+            filename_label.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=2)
+            
+            item_data = {
+                "frame": item_frame, 
+                "path": image_path, 
+                "image_data": image_data,
+                "checkbox_var": var,
+                "icon_label": icon_label
+            }
+            
+            # Click handler for preview
+            handler = lambda e, data=item_data: self._on_gallery_item_click(data, True)
+            for widget in [item_frame, filename_label, icon_label]:
+                widget.bind("<Button-1>", handler)
+                
+        else:
+            # Add to original images scrollable frame
+            item_frame = Frame(self.upscale_scrollable_frame, bg=self.colors['bg_dark'])
+            item_frame.pack(fill=tk.X, padx=5, pady=2)
+            
+            # Image icon and filename
+            status_icon = "🖼️"  # Image icon for original
+            label_text = f"{status_icon} {filename}"
+            
+            label = tk.Label(item_frame, text=label_text,
+                           bg=self.colors['bg_dark'],
+                           fg=self.colors['text_white'],
+                           font=('Arial', 9),
+                           anchor='w')
+            label.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 0))
+            
+            # Click to view image
+            label.bind("<Button-1>", lambda e, path=image_path: self.upscale_on_item_click(path))
+            
+            # Delete button (X icon)
+            delete_btn = tk.Label(item_frame, text="×", 
+                                 bg=self.colors['bg_dark'], fg='#ff4444',
+                                 font=('Arial', 12, 'bold'),
+                                 cursor="hand2")
+            delete_btn.pack(side=tk.RIGHT, padx=(0, 5))
+            delete_btn.bind("<Button-1>", lambda e, path=image_path: self.upscale_delete_image(path))
+            
+            item_data = {"path": image_path, "filename": filename, "frame": item_frame, "label": label}
         
         gallery_list.append(item_data)
-        
-        handler = lambda e, data=item_data, processed=is_processed: self._on_gallery_item_click(data, processed)
-        for widget in widgets_for_click_event:
-            widget.bind("<Button-1>", handler)
 
     def toggle_upscale_checkboxes(self, state):
         """Toggles all checkboxes in the processed results gallery."""
@@ -2040,31 +2320,12 @@ class JEGDesignExtractGUI:
         if not paths:
             return
 
-        # Clear previous single-image data
-        self.upscale_image_path = None
-        self.upscale_original_image = None
-        self.upscale_processed_label.config(image='')
+        # Clear previous processed data
+        self.upscale_processed_canvas.delete("all")
         self.upscale_processed_image = None
         
-        for i, path in enumerate(paths):
-            self.add_upscale_log(f"Loaded: {os.path.basename(path)}")
-            try:
-                image_data = cv2.imread(path, cv2.IMREAD_UNCHANGED)
-                if image_data is None:
-                    self.add_upscale_log(f"   -> Failed to read {os.path.basename(path)}")
-                    continue
-
-                # Display first image in the main viewer
-                if i == 0:
-                    self.upscale_image_path = path
-                    self.upscale_original_image = image_data
-                    self._display_image_in_widget(self.upscale_original_image, self.upscale_original_canvas, "original")
-                
-                self._add_to_upscale_gallery(self.upscale_original_gallery_items, path)
-
-            except Exception as e:
-                messagebox.showerror("Error", f"Failed to load {os.path.basename(path)}: {e}")
-                self.add_upscale_log(f"Error loading an image: {e}")
+        # Use the helper function to add images
+        self.upscale_add_image_files(paths)
 
     def process_upscale_image(self):
         """Starts the upscale process and changes the button to 'Cancel'."""
@@ -2186,7 +2447,7 @@ class JEGDesignExtractGUI:
         """Updates the UI after the upscale thread is complete. Must be called from the main thread."""
         if self.upscale_cancel_event.is_set():
             return
-        self._display_image_in_widget(self.upscale_processed_image, self.upscale_processed_label, "processed")
+        self._display_image_in_widget(self.upscale_processed_image, self.upscale_processed_canvas, "processed")
         
         self._add_to_upscale_gallery(
             self.upscale_processed_gallery_items,
@@ -2667,7 +2928,7 @@ class JEGDesignExtractGUI:
         
         # Processing mode variables (API mode only)
         self.processing_type_var = tk.StringVar(value="print")  # print or embroidery
-        self.gemini_api_key_var = tk.StringVar(value="AIzaSyAAQB9YzG7OsaUJE2Rfj2ajeQ6pSj2qhJA")
+        self.gemini_api_key_var = tk.StringVar(value="AIzaSyCxLhTOD-sMtaIYdw9CTKc4QVo1PHnDFpg")
         
         
 

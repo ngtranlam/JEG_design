@@ -18,3 +18,10 @@ __pycache__/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+.env/
