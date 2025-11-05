@@ -5059,6 +5059,13 @@ class JEGDesignExtractGUI:
         
     def show_page(self, page_name):
         """Show the selected page and update sidebar button styles."""
+        # Check if trying to access Video Gen tab - show popup and redirect to extract
+        if page_name == "video_gen":
+            tk.messagebox.showinfo("Feature Update", 
+                                 "This feature is currently under development, please come back later.")
+            # Redirect to extract tab instead
+            page_name = "extract"
+        
         page = self.pages[page_name]
         page.tkraise()
 
@@ -5504,6 +5511,23 @@ class JEGDesignExtractGUI:
                                                 font=('Arial', 10))
         self.mockup_mockup_type_dropdown.pack(side=tk.RIGHT)
         self.mockup_mockup_type_dropdown.bind('<<ComboboxSelected>>', self.mockup_on_mockup_type_changed)
+        
+        # Row 3c: Color Selection
+        color_row = Frame(options_content, bg=self.colors['bg_light'])
+        color_row.pack(fill=tk.X, pady=(0, 10))
+        
+        tk.Label(color_row, text="Color:",
+                bg=self.colors['bg_light'], fg=self.colors['text_white'],
+                font=('Arial', 10)).pack(side=tk.LEFT)
+        
+        # Color dropdown
+        self.mockup_color_var = tk.StringVar(value="Random")
+        color_options = ["Random", "Black (#000000)", "White (#ffffff)", "Sand (#d0c6b4)"]
+        self.mockup_color_dropdown = ttk.Combobox(color_row, textvariable=self.mockup_color_var,
+                                                values=color_options, state="readonly", width=15,
+                                                font=('Arial', 10))
+        self.mockup_color_dropdown.pack(side=tk.RIGHT)
+        self.mockup_color_dropdown.bind('<<ComboboxSelected>>', self.mockup_on_color_changed)
         
         # Row 4: Process Button
         process_row = Frame(options_content, bg=self.colors['bg_light'])
@@ -6223,6 +6247,11 @@ class JEGDesignExtractGUI:
             self.mockup_add_log(f"📱 Mockup type changed to: {mockup_type}")
         # TODO: Update mockup preview if enabled
     
+    def mockup_on_color_changed(self, event):
+        """Handle color dropdown change"""
+        color = self.mockup_color_var.get()
+        self.mockup_add_log(f"🎨 Color changed to: {color}")
+    
     def mockup_process_design(self):
         """
         Handles both starting and canceling the mockup processing task.
@@ -6373,6 +6402,21 @@ class JEGDesignExtractGUI:
             self.root.after(0, lambda: self.mockup_process_button.configure(text="🚀 Process Design", bg=self.colors['button_bg'], fg='#000000'))
             self.root.after(0, lambda: self.mockup_show_progress_ui(False))
     
+    def mockup_add_color_to_prompt(self, base_prompt):
+        """Add color information to mockup prompt based on user selection"""
+        color_selection = self.mockup_color_var.get()
+        
+        if color_selection == "Random":
+            return base_prompt
+        elif color_selection == "Black (#000000)":
+            return base_prompt.replace("Mockup phù hợp", "Sản phẩm màu đen. Mockup phù hợp")
+        elif color_selection == "White (#ffffff)":
+            return base_prompt.replace("Mockup phù hợp", "Sản phẩm màu trắng. Mockup phù hợp")
+        elif color_selection == "Sand (#d0c6b4)":
+            return base_prompt.replace("Mockup phù hợp", "Sản phẩm màu cát/be nhạt. Mockup phù hợp")
+        else:
+            return base_prompt
+    
     def mockup_process_with_mockup_api(self, image, crop_coordinates=None, target_size=(4500, 4500), upscayl_model='digital-art-4x'):
         """
         Process image using Gemini API for mockup generation (Mockup tab version)
@@ -6473,10 +6517,14 @@ class JEGDesignExtractGUI:
                             prompt = MOCKUP_PROMPTS_PRINT_FRONT.get(mockup_type, MOCKUP_PROMPTS_PRINT_FRONT["T-shirt"])
                             self.mockup_add_log(f"🔍 Debug - Using PRINT FRONT prompts")
             
+            # Apply color information to prompt
+            prompt = self.mockup_add_color_to_prompt(prompt)
+            
             model_text = f" with {gender} model" if self.mockup_model_var.get() else ""
             side_text = f" - {side} side"
             platform_text = f" for {platform}"
-            self.mockup_add_log(f"📱 Mockup mode: {mockup_type} ({processing_type}){model_text}{side_text}{platform_text}")
+            color_text = f" - {self.mockup_color_var.get()} color"
+            self.mockup_add_log(f"📱 Mockup mode: {mockup_type} ({processing_type}){model_text}{side_text}{platform_text}{color_text}")
             self.mockup_add_log(f"📝 Using prompt: {prompt[:50]}...")
             
             # STEP 1: CROP IMAGE
