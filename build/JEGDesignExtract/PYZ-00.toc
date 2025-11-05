@@ -3786,6 +3786,10 @@
   ('subprocess',
    '/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/subprocess.py',
    'PYMODULE'),
+  ('sync_progress_dialog',
+   '/Users/lamnguyen.dev/Documents/JEG '
+   'Tasks/Extension/Clone_Design/sync_progress_dialog.py',
+   'PYMODULE'),
   ('sysconfig',
    '/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/sysconfig/__init__.py',
    'PYMODULE'),
