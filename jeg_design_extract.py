@@ -24,6 +24,9 @@ from io import BytesIO
 import webbrowser
 from functools import partial
 
+# Import custom dialogs
+from sync_progress_dialog import SyncProgressDialog
+
 # ===== MOCKUP PROMPTS =====
 # Mockup Print Type - Front
 MOCKUP_PROMPTS_PRINT_FRONT = {
@@ -2275,10 +2278,24 @@ class JEGDesignExtractGUI:
     def on_closing(self):
         """Cleanup when closing the application."""
         try:
+            # Sync usage data to API with progress dialog
+            if hasattr(self, 'user_manager') and self.user_manager.is_logged_in():
+                self.add_log("🔄 Preparing to sync usage data...")
+                
+                # Show sync progress dialog
+                sync_dialog = SyncProgressDialog(self.root, self.user_manager)
+                success = sync_dialog.show_and_sync()
+                
+                if success:
+                    self.add_log("✅ Usage data synced and local data reset successfully!")
+                else:
+                    self.add_log("⚠️ Failed to sync usage data before closing")
+            
             # Clear mockup template cache
             if hasattr(self, 'mockup_cache'):
                 self.mockup_cache.clear_cache()
                 self.add_log("📦 Mockup template cache cleared on exit")
+                
         except Exception as e:
             self.add_log(f"Error during cleanup: {e}")
         
@@ -5066,9 +5083,9 @@ class JEGDesignExtractGUI:
             # Update window title to include username
             self.root.title(f"JEG Design Studio v2.2.0 - {current_user}")
             
-            # Sync total usage to API in background
-            self.add_log("🔄 Syncing usage data to server...")
-            threading.Thread(target=self._sync_usage_on_startup, daemon=True).start()
+            # Initialize stats from API (fetch baseline data)
+            self.add_log("🔄 Fetching usage data from server...")
+            threading.Thread(target=self._initialize_stats_from_api, daemon=True).start()
             
             # Refresh account tab if it exists
             if hasattr(self, 'account_tab'):
@@ -5081,16 +5098,19 @@ class JEGDesignExtractGUI:
             self.add_log("Login required. Closing application...")
             self.root.after(2000, self.root.quit)
     
-    def _sync_usage_on_startup(self):
-        """Sync total usage data to API on startup"""
+    def _initialize_stats_from_api(self):
+        """Initialize stats from API on startup"""
         try:
-            success = self.user_manager.sync_total_usage_to_api()
+            success = self.user_manager.initialize_user_stats_from_api()
             if success:
-                self.add_log("✅ Usage data synced to server successfully!")
+                self.add_log("✅ Usage data fetched from server successfully!")
+                # Refresh account tab to show updated data
+                if hasattr(self, 'account_tab'):
+                    self.root.after(100, self.account_tab.refresh_data)
             else:
-                self.add_log("⚠️ Failed to sync usage data to server")
+                self.add_log("⚠️ Could not fetch usage data from server, using local data")
         except Exception as e:
-            self.add_log(f"❌ Error syncing usage data: {e}")
+            self.add_log(f"❌ Error fetching usage data: {e}")
     
     def create_account_ui(self, parent):
         """Create the Account tab UI"""

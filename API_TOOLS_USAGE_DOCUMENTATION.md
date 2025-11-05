@@ -5,9 +5,9 @@ API để gửi dữ liệu sử dụng tools từ external applications về h�
 
 ---
 
-## 🚀 API Endpoint
+## 🚀 API Endpoints
 
-### **POST** `/api/tools/update`
+### **POST** `/api/tools/update` - Submit Usage Data
 
 **Full URL:** `https://jegdn.com/api/tools/update`
 
@@ -15,9 +15,17 @@ API để gửi dữ liệu sử dụng tools từ external applications về h�
 
 **Authentication:** None (Public API)
 
+### **GET** `/api/tools/stats/{userName}` - Get Usage Statistics
+
+**Full URL:** `https://jegdn.com/api/tools/stats/{userName}`
+
+**Method:** GET
+
+**Authentication:** None (Public API)
+
 ---
 
-## 📊 Request Parameters
+## 📊 POST Request Parameters
 
 | Parameter | Type | Required | Description | Example |
 |-----------|------|----------|-------------|---------|
@@ -29,6 +37,20 @@ API để gửi dữ liệu sử dụng tools từ external applications về h�
 | `total_cost` | decimal | No | Tổng chi phí ($) | `26.25` |
 | `timestamp` | string | No | Thời gian (ISO format) | `2025-10-21 14:30:00` |
 
+## 📊 GET Request Parameters
+
+### **Path Parameter:**
+| Parameter | Type | Required | Description | Example |
+|-----------|------|----------|-------------|---------|
+| `userName` | string | **Yes** | Tên đăng nhập của user | `admin.tu` |
+
+### **Query Parameters (Optional - cho filter):**
+| Parameter | Type | Required | Description | Example |
+|-----------|------|----------|-------------|---------|
+| `date_from` | string | No | Ngày bắt đầu (Y-m-d) | `2025-11-01` |
+| `date_to` | string | No | Ngày kết thúc (Y-m-d) | `2025-11-05` |
+| `period` | string | No | Kỳ báo cáo: `today`, `yesterday`, `this_week`, `last_week`, `this_month`, `last_month`, `all_time` | `this_month` |
+
 ### 📝 Notes:
 - **`userName`** phải tồn tại trong hệ thống với `roles = 3` (seller) và `status = 1`
 - **`total_cost`** sẽ được tự động tính = `image_cost + video_cost` nếu không gửi
@@ -39,7 +61,7 @@ API để gửi dữ liệu sử dụng tools từ external applications về h�
 
 ## 📤 Response Format
 
-### ✅ Success Response (200)
+### ✅ POST Success Response (200)
 ```json
 {
   "status": "success",
@@ -56,6 +78,31 @@ API để gửi dữ liệu sử dụng tools từ external applications về h�
       "total_cost": 26.25,
       "timestamp": "2025-10-21 14:30:00"
     }
+  }
+}
+```
+
+### ✅ GET Success Response (200)
+```json
+{
+  "status": "success",
+  "data": {
+    "userName": "admin.tu",
+    "user_id": 24,
+    "filter": {
+      "period": "this_month",
+      "date_from": "2025-11-01",
+      "date_to": "2025-11-30",
+      "description": "This Month (November 2025)"
+    },
+    "stats": {
+      "total_image_count": 150,
+      "total_image_cost": 304.50,
+      "total_video_count": 25,
+      "total_video_cost": 160.00,
+      "total_cost": 464.50
+    },
+    "last_updated": "2025-11-05 10:13:00"
   }
 }
 ```
@@ -251,21 +298,43 @@ GROUP BY user_id;
 
 ## 🧪 Testing
 
-### Test Page
-**URL:** `https://jegdn.com/test_tools_api.html`
+### Test Pages
 
-Form test với:
+**POST API Test:** `https://jegdn.com/test_tools_api.html`
 - Input fields cho tất cả parameters
 - Real-time validation
 - Response display
 - Auto-calculate total cost
 
+**GET API Test:** `https://jegdn.com/test_tools_stats_api.html`
+- Quick test buttons cho các periods
+- Flexible date range input
+- Real-time stats display
+- Error handling examples
+
 ### Manual Testing
+
+**POST API:**
 ```bash
-# Test với curl
+# Test POST với curl
 curl -X POST https://jegdn.com/api/tools/update \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "userName=admin.tu&image_count=5&image_cost=10.50&video_count=3&video_cost=15.75"
+```
+
+**GET API:**
+```bash
+# Test GET - All time stats
+curl "https://jegdn.com/api/tools/stats/admin.tu"
+
+# Test GET - This month
+curl "https://jegdn.com/api/tools/stats/admin.tu?period=this_month"
+
+# Test GET - Custom date range
+curl "https://jegdn.com/api/tools/stats/admin.tu?date_from=2025-11-01&date_to=2025-11-05"
+
+# Test GET - Today
+curl "https://jegdn.com/api/tools/stats/admin.tu?period=today"
 ```
 
 ---
