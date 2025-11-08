@@ -635,8 +635,20 @@ class AccountTab:
         result = messagebox.askyesno("Logout", "Are you sure you want to logout?")
         if result:
             self.user_manager.logout()
-            # You would need to implement a way to return to login screen
-            messagebox.showinfo("Logout", "You have been logged out successfully.")
+            
+            # Stop auto-refresh timer
+            self.stop_auto_refresh()
+            
+            # Clear UI data
+            self.clear_user_data()
+            
+            # Clear window title
+            if self.main_app and hasattr(self.main_app, 'root'):
+                self.main_app.root.title("JEG Design Studio v2.2.0")
+            
+            # Show login dialog again
+            if self.main_app and hasattr(self.main_app, 'show_login_dialog'):
+                self.main_app.show_login_dialog()
     
     def start_auto_refresh(self):
         """Start auto-refresh timer"""
@@ -649,6 +661,40 @@ class AccountTab:
         if self.refresh_timer:
             self.parent_frame.after_cancel(self.refresh_timer)
             self.refresh_timer = None
+    
+    def clear_user_data(self):
+        """Clear all user data from UI"""
+        # Reset greeting
+        self.greeting_label.config(text="Welcome back!")
+        self.user_label.config(text="Please login to continue")
+        
+        # Clear user info
+        for key, label in self.info_labels.items():
+            label.config(text="--", fg=self.colors['text_gray'])
+        
+        # Clear usage statistics
+        if hasattr(self, 'usage_labels'):
+            for key, label in self.usage_labels.items():
+                if 'count' in key:
+                    label.config(text="0")
+                elif 'cost' in key:
+                    label.config(text="$0.00")
+        
+        # Clear total cost
+        if hasattr(self, 'total_cost_label'):
+            self.total_cost_label.config(text="$0.00")
+        
+        # Clear API key entry
+        if hasattr(self, 'api_key_entry'):
+            self.api_key_entry.delete(0, tk.END)
+        
+        # Update API status
+        if hasattr(self, 'api_status_label'):
+            self.api_status_label.config(text="Not configured", fg=self.colors['error'])
+        
+        # Update status indicator
+        self.status_indicator.config(text="⚠️ Offline", fg=self.colors['error'])
+        self.last_update_label.config(text="Last updated: --")
     
     # API Key Management Methods
     def save_api_key(self):
