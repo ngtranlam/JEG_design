@@ -101,7 +101,6 @@ class UserManager:
         "lamdev",
         "seller"
     ]
-
     
     def __init__(self, api_endpoint: str = None):
         self.api_endpoint = api_endpoint or "https://jegdn.com/api/tools/update"
