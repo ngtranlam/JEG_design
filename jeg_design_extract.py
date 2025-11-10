@@ -1444,24 +1444,34 @@ class JEGDesignExtractGUI:
         self.video_gen_result_video = None
         self.video_gen_saved_script = None
         
-        # Set default script
-        default_script = """A stunning, ultra-high-quality, 8-second cinematic video. The video must be a single, seamless 'living animation' of the provided input image, with strict consistency across the model, attire, t-shirt design, and overall environment.
-
-**Aesthetic & Mood:** Achieve a premium, film-like quality with **warm, cinematic color grading**. The scene should have a **'Hygge' or 'Cozy Lifestyle'** mood, with soft, directional lighting that creates flattering shadows and highlights.
-
-**Consistency & Context:** Replicate the exact visual elements of the input mockup. Focus on making the **fabric texture** of the t-shirt look incredibly soft and realistic.
-
-**Action (The Animation):** The model, starting in the pose from the input photo, performs two subtle, appealing actions simultaneously:
-1.  **Head & Expression:** The model holds a **gentle, genuine smile** for the duration, slightly tilting their head, then slowly looking directly at the camera.
-2.  **Prop Interaction:** They are holding a mug of coffee or tea. They **slowly raise the mug** and take a small, delicate sip, making the action feel relaxed and unhurried. The movement should allow the t-shirt to ripple very lightly.
-
-**Camera (Dynamic Movement):** The camera should not be static. It executes a **slow, subtle 'dolly in' (tiến vào)** combined with a slight **'orbit' (xoay nhẹ)** around the model, increasing the sense of depth and dimensionality over the full 8 seconds. Use a **very shallow depth of field (bokeh)** to beautifully blur the background elements and keep the focus laser-sharp on the model and the t-shirt design.
-
-**Style & Lighting:** **Masterpiece-level photorealism.** Golden Hour lighting style, with the suggestion of **soft lens flare** adding to the dreamy atmosphere.
-
-**Audio:** Soft, crackling ambient sound (like a fireplace or soft coffee shop chatter), no music."""
+        # Set placeholder text instead of default script
+        placeholder_text = "Nhập script video của bạn ở đây hoặc nhấn 'Generate Script' để tự động tạo script từ hình ảnh..."
         
-        self.video_gen_script_text.insert('1.0', default_script)
+        self.video_gen_script_text.insert('1.0', placeholder_text)
+        self.video_gen_script_text.config(fg='#888888')  # Gray color for placeholder
+        
+        # Bind events to handle placeholder behavior
+        self.video_gen_script_text.bind('<FocusIn>', self._on_script_focus_in)
+        self.video_gen_script_text.bind('<FocusOut>', self._on_script_focus_out)
+        
+        # Track if placeholder is active
+        self.script_placeholder_active = True
+
+    def _on_script_focus_in(self, event):
+        """Handle focus in event for script text widget."""
+        if self.script_placeholder_active:
+            self.video_gen_script_text.delete('1.0', tk.END)
+            self.video_gen_script_text.config(fg=self.colors['text_white'])
+            self.script_placeholder_active = False
+
+    def _on_script_focus_out(self, event):
+        """Handle focus out event for script text widget."""
+        content = self.video_gen_script_text.get('1.0', tk.END).strip()
+        if not content:
+            placeholder_text = "Nhập script video của bạn ở đây hoặc nhấn 'Generate Script' để tự động tạo script từ hình ảnh..."
+            self.video_gen_script_text.insert('1.0', placeholder_text)
+            self.video_gen_script_text.config(fg='#888888')
+            self.script_placeholder_active = True
 
     def show_image_context_menu(self, event):
         """Show context menu for image upload options."""
@@ -1668,41 +1678,63 @@ class JEGDesignExtractGUI:
             messagebox.showerror("Error", f"Failed to start script generation: {str(e)}")
 
     def _generate_script_thread(self, api_key):
-        """Generate script in separate thread."""
+        """Generate script in separate thread with image analysis."""
         try:
-            self.add_video_gen_log("🎬 Generating script with Gemini...")
+            # Check if image is uploaded
+            if not hasattr(self, 'video_gen_original_image') or self.video_gen_original_image is None:
+                self.add_video_gen_log("❌ Please upload an image first!")
+                self.root.after(0, self._finish_script_generation, False)
+                return
+            
+            self.add_video_gen_log("🎬 Analyzing image and generating script with Gemini...")
             
             # Create Gemini client
             from gemini_client import GeminiClient
             client = GeminiClient(api_key=api_key)
             
-            # Generate 2 different scripts for 2 videos
-            self.add_video_gen_log("🎬 Generating script for Video 1 (Close-up)...")
-            prompt1 = "Viết kịch bản đơn giản cho video TikTok 8s - GÓC QUAY CLOSE-UP:\n- Camera gần, tập trung vào thiết kế áo\n- Zoom in để thấy rõ chi tiết, màu sắc\n- Tỉ lệ 9:16 FULL FRAME\n- KHÔNG có text, subtitle hay chữ viết gì\n- Chỉ video thuần, không overlay"
+            # Create product-focused prompt for natural clothing introduction
+            image_analysis_prompt = """Nhìn vào hình ảnh này và tạo một script video giới thiệu sản phẩm áo một cách tự nhiên bằng tiếng Việt.
+
+CHỈ TRẢ VỀ SCRIPT, KHÔNG GIẢI THÍCH GÌ THÊM.
+
+Script phải:
+- Tập trung giới thiệu chiếc áo/trang phục trong hình một cách tự nhiên
+- Mô tả chi tiết chuyển động để khoe áo (10 giây video)
+- Bao gồm: góc quay, cử chỉ, biểu cảm, ánh sáng
+- Tạo cảm giác tự nhiên như người mẫu đang tự tin khoe trang phục
+- Nhấn mạnh đặc điểm nổi bật của áo (màu sắc, kiểu dáng, chất liệu)
+
+Ví dụ format: "Cô gái mặc áo sơ mi trắng đứng trước gương, từ từ xoay người để khoe thiết kế, tay vuốt nhẹ qua vải áo, ánh sáng tự nhiên làm nổi bật chất liệu mềm mại, cô mỉm cười tự tin khi nhìn vào camera, sau đó điều chỉnh cổ áo một cách thanh lịch."
+
+CHỈ VIẾT SCRIPT CHI TIẾT, KHÔNG VIẾT GÌ KHÁC."""
+
+            self.add_video_gen_log("📸 Sending image to Gemini for analysis...")
             
-            script1 = client.generate_text(prompt1)
-            if not script1:
-                raise Exception("Failed to generate script 1")
+            # Generate script with image
+            script = client.generate_text_with_image(
+                prompt=image_analysis_prompt,
+                pil_image=self.video_gen_original_image
+            )
             
-            self.add_video_gen_log("✅ Script 1 generated!")
-            self.add_video_gen_log("🎬 Generating script for Video 2 (Full body)...")
+            if not script:
+                raise Exception("Failed to generate script from image analysis")
             
-            prompt2 = "Viết kịch bản đơn giản cho video TikTok 8s - GÓC QUAY TOÀN THÂN:\n- Camera xa, thấy cả người mặc áo\n- Người xoay người, giơ tay để show áo\n- Tỉ lệ 9:16 FULL FRAME\n- KHÔNG có text, subtitle hay chữ viết gì\n- Chỉ video thuần, không overlay"
+            self.add_video_gen_log("✅ Script generated successfully!")
             
-            script2 = client.generate_text(prompt2)
-            if not script2:
-                raise Exception("Failed to generate script 2")
+            # Clean up the script (remove any extra formatting)
+            cleaned_script = script.strip()
             
-            self.add_video_gen_log("✅ Script 2 generated!")
+            # Remove any markdown formatting or extra text
+            if cleaned_script.startswith('```'):
+                lines = cleaned_script.split('\n')
+                cleaned_script = '\n'.join(line for line in lines if not line.startswith('```'))
             
-            # Combine both scripts
-            script = f"🎬 VIDEO 1 (8s) - CLOSE-UP FOCUS:\n{script1}\n\n" + \
-                    f"🎬 VIDEO 2 (8s) - FULL BODY MOVEMENT:\n{script2}\n\n" + \
-                    f"📝 FINAL: Ghép 2 video trên thành 1 video 16s hoàn chỉnh"
+            # Use the script directly without extra formatting
+            formatted_script = cleaned_script.strip()
             
-            if script:
+            if formatted_script:
                 # Update UI in main thread
-                self.root.after(0, self._display_generated_script, script)
+                self.root.after(0, self._display_generated_script, formatted_script)
             else:
                 self.root.after(0, self._finish_script_generation, False)
                 
@@ -1718,6 +1750,10 @@ class JEGDesignExtractGUI:
             
             # Insert generated script
             self.video_gen_script_text.insert('1.0', script)
+            
+            # Set normal text color and mark placeholder as inactive
+            self.video_gen_script_text.config(fg=self.colors['text_white'])
+            self.script_placeholder_active = False
             
             self.add_video_gen_log("✅ Script generated successfully!")
             self._finish_script_generation(True)
@@ -1754,10 +1790,16 @@ class JEGDesignExtractGUI:
             messagebox.showerror("Error", f"Failed to save script: {str(e)}")
 
     def clear_script(self):
-        """Clear script content."""
+        """Clear script content and restore placeholder."""
         try:
             # Clear text widget completely
             self.video_gen_script_text.delete('1.0', tk.END)
+            
+            # Restore placeholder text
+            placeholder_text = "Nhập script video của bạn ở đây hoặc nhấn 'Generate Script' để tự động tạo script từ hình ảnh..."
+            self.video_gen_script_text.insert('1.0', placeholder_text)
+            self.video_gen_script_text.config(fg='#888888')
+            self.script_placeholder_active = True
             
             self.add_video_gen_log("🗑️ Script cleared")
             
@@ -1794,13 +1836,16 @@ class JEGDesignExtractGUI:
                 messagebox.showerror("Error", f"Failed to load image: {str(e)}")
 
     def generate_video(self):
-        """Generate video using Gemini Veo3 API."""
+        """Generate video using Kling AI."""
         if not self.video_gen_image_path:
             messagebox.showwarning("Warning", "Please upload a design image first.")
             return
         
-        if not self.video_gen_saved_script:
-            messagebox.showwarning("Warning", "Please save a script first using the 'Save' button.")
+        # Check if script is entered (not placeholder)
+        script_content = self.video_gen_script_text.get('1.0', tk.END).strip()
+        if not script_content or self.script_placeholder_active:
+            messagebox.showwarning("Warning", 
+                                 "Please enter a video script or use 'Generate Script' to create one automatically.")
             return
         
         # Start progress bar
@@ -1811,22 +1856,24 @@ class JEGDesignExtractGUI:
         threading.Thread(target=self._generate_video_thread, daemon=True).start()
 
     def _generate_video_thread(self):
-        """Thread function for video generation."""
+        """Thread function for video generation using Kling AI."""
         try:
-            self.add_video_gen_log("Starting video generation...")
+            self.add_video_gen_log("Starting video generation with Kling AI...")
             
-            # Import Gemini client
-            from gemini_client import GeminiClient
+            # Import Kling client
+            from kling_client import KlingClient
             
-            # Get API key
-            api_key = self.gemini_api_key_var.get().strip()
-            if not api_key:
-                self.add_video_gen_log("Error: Gemini API key is required")
-                self.root.after(0, lambda: messagebox.showerror("Error", "Gemini API key is required"))
+            # Get Kling API keys
+            access_key = self.kling_access_key_var.get().strip()
+            secret_key = self.kling_secret_key_var.get().strip()
+            
+            if not access_key or not secret_key:
+                self.add_video_gen_log("Error: Kling AI API keys are required")
+                self.root.after(0, lambda: messagebox.showerror("Error", "Kling AI API keys are required. Please configure them in the Account tab."))
                 return
             
-            # Initialize Gemini client
-            gemini_client = GeminiClient(api_key)
+            # Initialize Kling client
+            kling_client = KlingClient(access_key, secret_key)
             
             # Use saved script
             prompt = self.video_gen_saved_script
@@ -1835,25 +1882,38 @@ class JEGDesignExtractGUI:
                 self.root.after(0, lambda: messagebox.showerror("Error", "Saved script is required"))
                 return
             
-            self.add_video_gen_log("Sending request to Gemini Veo3 API...")
-            self.add_video_gen_log("🎬 Creating 2 videos with different camera angles...")
+            self.add_video_gen_log("Sending request to Kling AI API...")
+            self.add_video_gen_log("🎬 Creating video from image...")
             
-            # Generate dual videos (2x 8s videos merged into 16s)
-            video_path = gemini_client.generate_dual_videos_from_image(
-                image_path=self.video_gen_image_path,
-                combined_script=prompt
+            # Generate video using Kling AI
+            video_url = kling_client.generate_video_from_image(
+                pil_image=self.video_gen_original_image,
+                prompt=prompt,
+                model_name="kling-v2-5-turbo",
+                mode="pro",
+                duration="10"
             )
             
-            if video_path and os.path.exists(video_path):
-                self.video_gen_result_video = video_path
+            if video_url:
                 self.add_video_gen_log("Video generated successfully!")
-                self.add_video_gen_log(f"Video saved to: {os.path.basename(video_path)}")
+                self.add_video_gen_log(f"Video URL: {video_url}")
                 
-                # Record usage for billing
-                self.record_video_usage()
+                # Download the video
+                self.add_video_gen_log("Downloading video...")
+                video_path = self._download_video_from_url(video_url)
                 
-                # Update UI in main thread
-                self.root.after(0, self._display_generated_video)
+                if video_path and os.path.exists(video_path):
+                    self.video_gen_result_video = video_path
+                    self.add_video_gen_log(f"Video saved to: {os.path.basename(video_path)}")
+                    
+                    # Record usage for billing
+                    self.record_video_usage()
+                    
+                    # Update UI in main thread
+                    self.root.after(0, self._display_generated_video)
+                else:
+                    self.add_video_gen_log("Error: Failed to download video")
+                    self.root.after(0, lambda: messagebox.showerror("Error", "Failed to download video"))
             else:
                 self.add_video_gen_log("Error: Video generation failed")
                 self.root.after(0, lambda: messagebox.showerror("Error", "Video generation failed"))
@@ -1865,6 +1925,43 @@ class JEGDesignExtractGUI:
         finally:
             # Stop progress bar and re-enable button
             self.root.after(0, self._finish_video_generation)
+
+    def _download_video_from_url(self, video_url: str) -> str:
+        """Download video from URL and save to local file."""
+        try:
+            import requests
+            import tempfile
+            
+            # Create a temporary file for the video
+            temp_dir = tempfile.gettempdir()
+            timestamp = int(time.time())
+            video_filename = f"kling_video_{timestamp}.mp4"
+            video_path = os.path.join(temp_dir, video_filename)
+            
+            # Download the video
+            response = requests.get(video_url, stream=True, timeout=60)
+            response.raise_for_status()
+            
+            total_size = int(response.headers.get('content-length', 0))
+            downloaded_size = 0
+            
+            with open(video_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+                        downloaded_size += len(chunk)
+                        
+                        # Update progress
+                        if total_size > 0:
+                            progress = (downloaded_size / total_size) * 100
+                            self.add_video_gen_log(f"Downloading... {progress:.1f}%")
+            
+            self.add_video_gen_log("Video download completed!")
+            return video_path
+            
+        except Exception as e:
+            self.add_video_gen_log(f"Error downloading video: {str(e)}")
+            return None
 
     def _display_generated_video(self):
         """Display the generated video in the UI."""
@@ -2948,6 +3045,10 @@ class JEGDesignExtractGUI:
         # Processing mode variables (API mode only)
         self.processing_type_var = tk.StringVar(value="print")  # print or embroidery
         self.gemini_api_key_var = tk.StringVar(value="")
+        
+        # Kling AI API key variables for video generation
+        self.kling_access_key_var = tk.StringVar(value="")
+        self.kling_secret_key_var = tk.StringVar(value="")
         
         
 
@@ -4128,6 +4229,31 @@ class JEGDesignExtractGUI:
             if show_log:
                 self.add_log(f"❌ Error loading API key: {e}")
             print(f"Debug: Error loading API key: {e}")
+    
+    def load_kling_api_keys(self, show_log=True):
+        """Load Kling AI API keys from user manager"""
+        try:
+            access_key = self.user_manager.get_api_key("kling_access_key")
+            secret_key = self.user_manager.get_api_key("kling_secret_key")
+            
+            if access_key and secret_key:
+                self.kling_access_key_var.set(access_key)
+                self.kling_secret_key_var.set(secret_key)
+                if show_log:
+                    self.add_log("🔑 Kling AI API keys loaded successfully")
+                print(f"Debug: Kling API keys loaded successfully")
+            else:
+                self.kling_access_key_var.set("")
+                self.kling_secret_key_var.set("")
+                if show_log:
+                    self.add_log("⚠️ No Kling AI API keys configured. Please set up in Account tab.")
+                print("Debug: No Kling API keys found in storage")
+        except Exception as e:
+            self.kling_access_key_var.set("")
+            self.kling_secret_key_var.set("")
+            if show_log:
+                self.add_log(f"❌ Error loading Kling API keys: {e}")
+            print(f"Debug: Error loading Kling API keys: {e}")
         
     def verify_dpi(self, file_path):
         """Verify that saved file has correct DPI"""
@@ -4762,9 +4888,6 @@ class JEGDesignExtractGUI:
         context_menu = tk.Menu(self.root, tearoff=0)
         context_menu.add_command(label="🎬 Video Generate", 
                                command=self.send_to_video_gen)
-        context_menu.add_separator()
-        context_menu.add_command(label="🔍 Zoom Preview", 
-                               command=lambda: self.start_zoom_preview(event))
         
         try:
             context_menu.tk_popup(event.x_root, event.y_root)
@@ -5059,13 +5182,6 @@ class JEGDesignExtractGUI:
         
     def show_page(self, page_name):
         """Show the selected page and update sidebar button styles."""
-        # Check if trying to access Video Gen tab - show popup and redirect to extract
-        if page_name == "video_gen":
-            tk.messagebox.showinfo("Feature Update", 
-                                 "This feature is currently under development, please come back later.")
-            # Redirect to extract tab instead
-            page_name = "extract"
-        
         page = self.pages[page_name]
         page.tkraise()
 
@@ -5098,8 +5214,9 @@ class JEGDesignExtractGUI:
             if hasattr(self, 'account_tab'):
                 self.account_tab.refresh_data()
             
-            # Load API key after successful login
+            # Load API keys after successful login
             self.load_api_key()
+            self.load_kling_api_keys()
         else:
             # Login cancelled, close application
             self.add_log("Login required. Closing application...")
@@ -5674,25 +5791,14 @@ class JEGDesignExtractGUI:
             messagebox.showerror("Paste Error", f"Error pasting from clipboard: {str(e)}")
     
     def mockup_on_right_click_extracted(self, event):
-        """Handle right-click on extracted canvas - show context menu"""
-        # Only show menu if there's a processed result
-        if not (self.mockup_current_image_item and 
-                self.mockup_current_image_item.status == "completed" and 
-                self.mockup_current_image_item.processed_image is not None):
-            return
+        """Handle right-click press on mockup extracted canvas"""
+        # Store initial position and reset dragging state
+        self.mockup_right_click_start_pos = (event.x, event.y)
+        self.mockup_is_dragging = False
         
-        # Create context menu
-        context_menu = tk.Menu(self.root, tearoff=0)
-        context_menu.add_command(label="💾 Save Image...", command=self.mockup_save_current_result)
-        context_menu.add_command(label="📋 Copy to Clipboard", command=self.mockup_copy_to_clipboard)
-        context_menu.add_separator()
-        context_menu.add_command(label="🔍 Zoom Preview", command=self.mockup_zoom_preview)
-        
-        # Show context menu at cursor position
-        try:
-            context_menu.tk_popup(event.x_root, event.y_root)
-        finally:
-            context_menu.grab_release()
+        # Start zoom preview immediately for smooth experience
+        if hasattr(self, 'mockup_current_zoom_image') and self.mockup_current_zoom_image is not None:
+            self.mockup_start_zoom_preview(event)
     
     def mockup_save_current_result(self):
         """Save current processed result"""
@@ -5849,12 +5955,240 @@ class JEGDesignExtractGUI:
             messagebox.showerror("Preview Error", f"Error opening zoom preview: {str(e)}")
     
     def mockup_on_right_drag_extracted(self, event):
-        """Placeholder for mockup right drag extracted"""
-        pass
+        """Handle right-click drag on mockup extracted canvas"""
+        if self.mockup_right_click_start_pos:
+            # Calculate distance moved
+            start_x, start_y = self.mockup_right_click_start_pos
+            distance = ((event.x - start_x) ** 2 + (event.y - start_y) ** 2) ** 0.5
+            
+            # If moved more than 5 pixels, consider it dragging
+            if distance > 5:
+                self.mockup_is_dragging = True
+                
+            # Update zoom preview if dragging
+            if self.mockup_is_dragging and hasattr(self, 'mockup_current_zoom_image') and self.mockup_current_zoom_image is not None:
+                self.mockup_update_zoom_preview(event)
     
     def mockup_on_right_release_extracted(self, event):
-        """Placeholder for mockup right release extracted"""
-        pass
+        """Handle right-click release on mockup extracted canvas"""
+        try:
+            if self.mockup_is_dragging:
+                # Was dragging - end zoom preview
+                self.mockup_end_zoom_preview(event)
+            else:
+                # Was just a click - show context menu
+                self.mockup_show_extracted_context_menu(event)
+        finally:
+            # Reset state
+            self.mockup_right_click_start_pos = None
+            self.mockup_is_dragging = False
+
+    def mockup_show_extracted_context_menu(self, event):
+        """Show context menu for mockup extracted design canvas"""
+        # Only show menu if there's a processed result
+        if not (self.mockup_current_image_item and 
+                self.mockup_current_image_item.status == "completed" and 
+                self.mockup_current_image_item.processed_image is not None):
+            return
+            
+        # Create context menu
+        context_menu = tk.Menu(self.root, tearoff=0)
+        context_menu.add_command(label="🎬 Video Generate", 
+                               command=self.mockup_send_to_video_gen)
+        context_menu.add_separator()
+        context_menu.add_command(label="💾 Save Image...", command=self.mockup_save_current_result)
+        context_menu.add_command(label="📋 Copy to Clipboard", command=self.mockup_copy_to_clipboard)
+        
+        try:
+            context_menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            context_menu.grab_release()
+
+    def mockup_start_zoom_preview(self, event):
+        """Start zoom preview when right-clicking on mockup extracted canvas"""
+        if not hasattr(self, 'mockup_current_zoom_image') or self.mockup_current_zoom_image is None:
+            return
+        
+        # Update zoom preview
+        self.mockup_update_zoom_preview(event)
+    
+    def mockup_update_zoom_preview(self, event):
+        """Update zoom preview based on mouse position for mockup tab"""
+        if self.mockup_current_zoom_image is None:
+            return
+            
+        try:
+            # Get mouse position relative to mockup extracted canvas
+            canvas_x = self.mockup_extracted_canvas.canvasx(event.x)
+            canvas_y = self.mockup_extracted_canvas.canvasy(event.y)
+            
+            # Get canvas dimensions
+            canvas_width = self.mockup_extracted_canvas.winfo_width()
+            canvas_height = self.mockup_extracted_canvas.winfo_height()
+            
+            # Calculate zoom area (800x800 pixels around mouse - very large magnifying glass)
+            zoom_size = 800
+            zoom_factor = 0.2  # 0.2x zoom (smaller image inside magnifying glass)
+            
+            # Calculate source coordinates in the original image
+            if hasattr(self, 'mockup_extracted_canvas') and self.mockup_extracted_canvas.image:
+                # Get the displayed image dimensions
+                img_width = self.mockup_extracted_canvas.image.width()
+                img_height = self.mockup_extracted_canvas.image.height()
+                
+                # Calculate image position on canvas
+                img_x = canvas_width // 2
+                img_y = canvas_height // 2
+                
+                # Calculate relative position within the image
+                rel_x = (canvas_x - img_x + img_width // 2) / img_width
+                rel_y = (canvas_y - img_y + img_height // 2) / img_height
+                
+                # Clamp to image bounds
+                rel_x = max(0, min(1, rel_x))
+                rel_y = max(0, min(1, rel_y))
+                
+                # Calculate source coordinates in original image
+                src_x = int(rel_x * self.mockup_current_zoom_image.shape[1])
+                src_y = int(rel_y * self.mockup_current_zoom_image.shape[0])
+                
+                # Calculate zoom area bounds
+                half_zoom = zoom_size // 2
+                x1 = int(max(0, src_x - half_zoom))
+                y1 = int(max(0, src_y - half_zoom))
+                x2 = int(min(self.mockup_current_zoom_image.shape[1], src_x + half_zoom))
+                y2 = int(min(self.mockup_current_zoom_image.shape[0], src_y + half_zoom))
+                
+                # Extract zoom area
+                zoom_area = self.mockup_current_zoom_image[y1:y2, x1:x2]
+                
+                if zoom_area.size > 0:
+                    # Convert to PIL first (no resizing - pure zoom)
+                    if len(zoom_area.shape) == 3:
+                        zoom_pil = Image.fromarray(cv2.cvtColor(zoom_area, cv2.COLOR_BGR2RGB))
+                    else:
+                        zoom_pil = Image.fromarray(zoom_area)
+                    
+                    # Scale down the image inside magnifying glass
+                    zoom_width = int(zoom_area.shape[1] * zoom_factor)  # Smaller width
+                    zoom_height = int(zoom_area.shape[0] * zoom_factor)  # Smaller height
+                    zoom_pil = zoom_pil.resize((zoom_width, zoom_height), Image.Resampling.LANCZOS)
+                    
+                    zoom_photo = ImageTk.PhotoImage(zoom_pil)
+                    
+                    # Remove previous zoom overlay and any trail elements
+                    if self.mockup_zoom_overlay_id:
+                        self.mockup_extracted_canvas.delete(self.mockup_zoom_overlay_id)
+                    
+                    # Clean up any remaining zoom elements
+                    self.mockup_extracted_canvas.delete('mockup_zoom_border')
+                    self.mockup_extracted_canvas.delete('mockup_zoom_trail')
+                    
+                    # Calculate position for zoom circle (offset to avoid mouse cursor)
+                    zoom_x = int(canvas_x + 120)  # Offset to the right
+                    zoom_y = int(canvas_y - 120)  # Offset upward
+                    
+                    # Ensure zoom circle stays within canvas bounds
+                    zoom_x = int(min(zoom_x, canvas_width - zoom_width - 10))
+                    zoom_y = int(max(zoom_y, 10))
+                    
+                    # Create circular mask for zoom image
+                    circle_radius = zoom_width // 2
+                    
+                    # Create a circular mask
+                    mask = Image.new('L', (zoom_width, zoom_height), 0)
+                    draw = ImageDraw.Draw(mask)
+                    draw.ellipse((0, 0, zoom_width, zoom_height), fill=255)
+                    
+                    # Apply mask to zoom image
+                    zoom_pil.putalpha(mask)
+                    zoom_photo_masked = ImageTk.PhotoImage(zoom_pil)
+                    
+                    # Draw black border circle first
+                    border_radius = circle_radius + 3  # Slightly larger for border
+                    self.mockup_extracted_canvas.create_oval(
+                        zoom_x - border_radius, zoom_y - border_radius,
+                        zoom_x + border_radius, zoom_y + border_radius,
+                        outline='black', width=4, tags='mockup_zoom_border'
+                    )
+                    
+                    # Draw zoomed image with circular mask
+                    self.mockup_zoom_overlay_id = self.mockup_extracted_canvas.create_image(zoom_x, zoom_y, image=zoom_photo_masked, anchor=tk.CENTER)
+                    self.mockup_extracted_canvas.zoom_image = zoom_photo_masked  # Keep reference
+                    
+        except Exception as e:
+            print(f"Mockup zoom preview error: {e}")
+    
+    def mockup_end_zoom_preview(self, event):
+        """End zoom preview when right-click is released for mockup tab"""
+        # Remove zoom overlay and border
+        if self.mockup_zoom_overlay_id:
+            self.mockup_extracted_canvas.delete(self.mockup_zoom_overlay_id)
+            self.mockup_zoom_overlay_id = None
+        
+        # Clean up all zoom elements completely
+        self.mockup_extracted_canvas.delete('mockup_zoom_border')
+        self.mockup_extracted_canvas.delete('mockup_zoom_trail')
+        self.mockup_extracted_canvas.delete('mockup_crosshair')
+
+    def mockup_set_current_zoom_image(self, image):
+        """Set the current image for zoom preview in mockup tab"""
+        self.mockup_current_zoom_image = image
+
+    def mockup_send_to_video_gen(self):
+        """Send mockup processed result to Video Gen tab"""
+        try:
+            # Check if there's a processed result
+            if not (self.mockup_current_image_item and 
+                    self.mockup_current_image_item.status == "completed" and 
+                    self.mockup_current_image_item.processed_image is not None):
+                messagebox.showwarning("Warning", "No processed mockup result to send to Video Gen")
+                return
+            
+            # Convert processed image to PIL format
+            processed_image = self.mockup_current_image_item.processed_image
+            if len(processed_image.shape) == 3 and processed_image.shape[2] == 4:
+                # BGRA to RGBA
+                rgba_image = cv2.cvtColor(processed_image, cv2.COLOR_BGRA2RGBA)
+            else:
+                # BGR to RGB
+                rgba_image = cv2.cvtColor(processed_image, cv2.COLOR_BGR2RGB)
+            
+            pil_image = Image.fromarray(rgba_image)
+            
+            # Save mockup result to a temporary file
+            import tempfile
+            import os
+            import time
+            
+            # Create temp file
+            temp_dir = tempfile.gettempdir()
+            temp_filename = f"mockup_for_video_{int(time.time())}.png"
+            temp_path = os.path.join(temp_dir, temp_filename)
+            
+            # Save mockup image
+            pil_image.save(temp_path, "PNG")
+            
+            # Switch to Video Gen tab
+            self.show_page("video_gen")
+            
+            # Load image into Video Gen
+            self.video_gen_image_path = temp_path
+            self.video_gen_original_image = pil_image.copy()
+            self._display_uploaded_image()
+            
+            # Add log message
+            self.add_video_gen_log(f"📤 Loaded mockup result from Mockup tab")
+            self.add_video_gen_log("Ready to generate video. Click 'Generate Video' button.")
+            
+            # Log in mockup tab as well
+            self.mockup_add_log(f"📤 Sent mockup result to Video Gen tab")
+            
+            messagebox.showinfo("Success", "Mockup result loaded into Video Gen tab!")
+            
+        except Exception as e:
+            self.mockup_add_log(f"❌ Error sending to Video Gen: {str(e)}")
+            messagebox.showerror("Error", f"Failed to send to Video Gen: {str(e)}")
     
     def mockup_browse_files(self):
         """Browse and add image files to mockup tab"""
@@ -6663,6 +6997,10 @@ class JEGDesignExtractGUI:
             x = canvas_width // 2
             y = canvas_height // 2
             self.mockup_extracted_canvas.create_image(x, y, image=self.mockup_tk_image, anchor=tk.CENTER)
+            self.mockup_extracted_canvas.image = self.mockup_tk_image  # Keep reference
+            
+            # Store original image for zoom functionality
+            self.mockup_set_current_zoom_image(processed_image)
             
         except Exception as e:
             self.mockup_add_log(f"❌ Error displaying processed image: {str(e)}")

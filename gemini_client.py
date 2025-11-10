@@ -629,6 +629,84 @@ class GeminiClient:
             traceback.print_exc()
             return None
 
+    def generate_text_with_image(self, prompt: str, pil_image: Image.Image = None, image_path: str = None) -> Optional[str]:
+        """Generate text with image analysis using Gemini API."""
+        try:
+            if not GENAI_AVAILABLE:
+                print("❌ Google GenAI library not available. Please install with: pip install google-genai")
+                return None
+            
+            print(f"📝 Generating text with image analysis using gemini-2.5-pro...")
+            print(f"📝 Prompt: {prompt[:100]}...")
+            
+            # Initialize client with API key
+            client = genai.Client(api_key=self.api_key)
+            
+            # Prepare image data
+            if pil_image is not None:
+                # Convert PIL image to bytes
+                img_byte_arr = io.BytesIO()
+                
+                # Convert RGBA to RGB if necessary (JPEG doesn't support transparency)
+                if pil_image.mode == 'RGBA':
+                    # Create white background
+                    background = Image.new('RGB', pil_image.size, (255, 255, 255))
+                    background.paste(pil_image, mask=pil_image.split()[-1])  # Use alpha channel as mask
+                    pil_image = background
+                elif pil_image.mode not in ('RGB', 'L'):
+                    # Convert other modes to RGB
+                    pil_image = pil_image.convert('RGB')
+                
+                pil_image.save(img_byte_arr, format='JPEG', quality=95)
+                image_data = img_byte_arr.getvalue()
+            elif image_path is not None:
+                # Read image from file
+                with open(image_path, 'rb') as f:
+                    image_data = f.read()
+            else:
+                print("❌ No image provided")
+                return None
+            
+            print("📸 Processing image with Gemini...")
+            
+            # Use the simplest approach - PIL Image directly
+            if pil_image is not None:
+                print("📸 Using PIL Image directly...")
+                contents = [prompt, pil_image]
+            else:
+                print("📸 Loading image from path...")
+                # Load image from path and use directly
+                pil_image_from_path = Image.open(image_path)
+                
+                # Apply same RGBA conversion if needed
+                if pil_image_from_path.mode == 'RGBA':
+                    background = Image.new('RGB', pil_image_from_path.size, (255, 255, 255))
+                    background.paste(pil_image_from_path, mask=pil_image_from_path.split()[-1])
+                    pil_image_from_path = background
+                elif pil_image_from_path.mode not in ('RGB', 'L'):
+                    pil_image_from_path = pil_image_from_path.convert('RGB')
+                
+                contents = [prompt, pil_image_from_path]
+            
+            # Generate text with image using gemini-2.5-pro
+            response = client.models.generate_content(
+                model="gemini-2.5-pro",
+                contents=contents
+            )
+            
+            if response and response.text:
+                print("✅ Text with image analysis generated successfully!")
+                return response.text
+            else:
+                print("❌ No text generated from image analysis")
+                return None
+                
+        except Exception as e:
+            print(f"❌ Error generating text with image: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return None
+
     def _merge_videos(self, video1_path: str, video2_path: str) -> Optional[str]:
         """
         Merge two 8s videos into one 16s video using ffmpeg

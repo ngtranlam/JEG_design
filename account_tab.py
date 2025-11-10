@@ -352,12 +352,12 @@ class AccountTab:
                                         bg=self.colors['bg_light'])
         self.api_status_label.pack(side=tk.RIGHT)
         
-        # Input frame
-        input_frame = tk.Frame(content_frame, bg=self.colors['bg_light'])
-        input_frame.pack(fill=tk.X, pady=(5, 10))
+        # Input frame for Google API
+        google_input_frame = tk.Frame(content_frame, bg=self.colors['bg_light'])
+        google_input_frame.pack(fill=tk.X, pady=(5, 10))
         
-        # API Key entry
-        self.api_key_entry = tk.Entry(input_frame,
+        # Google API Key entry
+        self.api_key_entry = tk.Entry(google_input_frame,
                                      font=('Arial', 10),
                                      bg='white',
                                      fg='black',
@@ -365,12 +365,12 @@ class AccountTab:
                                      width=50)
         self.api_key_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
         
-        # Buttons frame
-        buttons_frame = tk.Frame(input_frame, bg=self.colors['bg_light'])
-        buttons_frame.pack(side=tk.RIGHT)
+        # Buttons frame for Google API
+        google_buttons_frame = tk.Frame(google_input_frame, bg=self.colors['bg_light'])
+        google_buttons_frame.pack(side=tk.RIGHT)
         
         # Save button
-        save_btn = tk.Button(buttons_frame,
+        save_btn = tk.Button(google_buttons_frame,
                             text="💾 Save",
                             command=self.save_api_key,
                             font=('Arial', 9, 'bold'),
@@ -384,7 +384,7 @@ class AccountTab:
         save_btn.pack(side=tk.LEFT, padx=(0, 5))
         
         # Test button
-        test_btn = tk.Button(buttons_frame,
+        test_btn = tk.Button(google_buttons_frame,
                             text="🧪 Test",
                             command=self.test_api_key,
                             font=('Arial', 9, 'bold'),
@@ -398,7 +398,7 @@ class AccountTab:
         test_btn.pack(side=tk.LEFT, padx=(0, 5))
         
         # Clear button
-        clear_btn = tk.Button(buttons_frame,
+        clear_btn = tk.Button(google_buttons_frame,
                              text="🗑️ Clear",
                              command=self.clear_api_key,
                              font=('Arial', 9, 'bold'),
@@ -411,13 +411,127 @@ class AccountTab:
                              cursor='hand2')
         clear_btn.pack(side=tk.LEFT)
         
-        # Help text
+        # Help text for Google API
         help_label = tk.Label(content_frame,
-                             text="💡 Get your API key from: https://aistudio.google.com/app/apikey",
+                             text="💡 Get your Google API key from: https://aistudio.google.com/app/apikey",
                              font=('Arial', 9, 'italic'),
                              fg=self.colors['text_gray'],
                              bg=self.colors['bg_light'])
         help_label.pack(anchor='w', pady=(5, 0))
+        
+        # Separator
+        separator = tk.Frame(content_frame, bg=self.colors['text_gray'], height=1)
+        separator.pack(fill=tk.X, pady=(15, 15))
+        
+        # Kling AI API Key section
+        kling_frame = tk.Frame(content_frame, bg=self.colors['bg_light'])
+        kling_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        tk.Label(kling_frame,
+                text="Kling AI API Keys (for Video Generation):",
+                font=('Arial', 10, 'bold'),
+                fg=self.colors['text_white'],
+                bg=self.colors['bg_light']).pack(side=tk.LEFT)
+        
+        # Kling API Key status
+        self.kling_api_status_label = tk.Label(kling_frame,
+                                              text="Not configured",
+                                              font=('Arial', 10),
+                                              fg=self.colors['error'],
+                                              bg=self.colors['bg_light'])
+        self.kling_api_status_label.pack(side=tk.RIGHT)
+        
+        # Access Key input frame
+        access_key_frame = tk.Frame(content_frame, bg=self.colors['bg_light'])
+        access_key_frame.pack(fill=tk.X, pady=(5, 5))
+        
+        tk.Label(access_key_frame,
+                text="Access Key:",
+                font=('Arial', 9, 'bold'),
+                fg=self.colors['text_white'],
+                bg=self.colors['bg_light'],
+                width=12).pack(side=tk.LEFT, padx=(0, 5))
+        
+        self.kling_access_key_entry = tk.Entry(access_key_frame,
+                                              font=('Arial', 10),
+                                              bg='white',
+                                              fg='black',
+                                              show='*',
+                                              width=50)
+        self.kling_access_key_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        
+        # Secret Key input frame
+        secret_key_frame = tk.Frame(content_frame, bg=self.colors['bg_light'])
+        secret_key_frame.pack(fill=tk.X, pady=(5, 10))
+        
+        tk.Label(secret_key_frame,
+                text="Secret Key:",
+                font=('Arial', 9, 'bold'),
+                fg=self.colors['text_white'],
+                bg=self.colors['bg_light'],
+                width=12).pack(side=tk.LEFT, padx=(0, 5))
+        
+        self.kling_secret_key_entry = tk.Entry(secret_key_frame,
+                                              font=('Arial', 10),
+                                              bg='white',
+                                              fg='black',
+                                              show='*',
+                                              width=50)
+        self.kling_secret_key_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        
+        # Kling buttons frame
+        kling_buttons_frame = tk.Frame(content_frame, bg=self.colors['bg_light'])
+        kling_buttons_frame.pack(fill=tk.X, pady=(5, 10))
+        
+        # Kling Save button
+        kling_save_btn = tk.Button(kling_buttons_frame,
+                                  text="💾 Save Kling Keys",
+                                  command=self.save_kling_api_keys,
+                                  font=('Arial', 9, 'bold'),
+                                  bg=self.colors['success'],
+                                  fg='black',
+                                  relief=tk.FLAT,
+                                  bd=0,
+                                  padx=10,
+                                  pady=5,
+                                  cursor='hand2')
+        kling_save_btn.pack(side=tk.LEFT, padx=(0, 5))
+        
+        # Kling Test button
+        kling_test_btn = tk.Button(kling_buttons_frame,
+                                  text="🧪 Test Kling",
+                                  command=self.test_kling_api_keys,
+                                  font=('Arial', 9, 'bold'),
+                                  bg=self.colors['button_bg'],
+                                  fg='black',
+                                  relief=tk.FLAT,
+                                  bd=0,
+                                  padx=10,
+                                  pady=5,
+                                  cursor='hand2')
+        kling_test_btn.pack(side=tk.LEFT, padx=(0, 5))
+        
+        # Kling Clear button
+        kling_clear_btn = tk.Button(kling_buttons_frame,
+                                   text="🗑️ Clear Kling",
+                                   command=self.clear_kling_api_keys,
+                                   font=('Arial', 9, 'bold'),
+                                   bg=self.colors['error'],
+                                   fg='black',
+                                   relief=tk.FLAT,
+                                   bd=0,
+                                   padx=10,
+                                   pady=5,
+                                   cursor='hand2')
+        kling_clear_btn.pack(side=tk.LEFT)
+        
+        # Help text for Kling AI
+        kling_help_label = tk.Label(content_frame,
+                                   text="💡 Get your Kling AI keys from: https://app.klingai.com/global/dev/document-api",
+                                   font=('Arial', 9, 'italic'),
+                                   fg=self.colors['text_gray'],
+                                   bg=self.colors['bg_light'])
+        kling_help_label.pack(anchor='w', pady=(5, 0))
     
     def create_actions_section(self, parent):
         """Create actions section"""
@@ -688,9 +802,17 @@ class AccountTab:
         if hasattr(self, 'api_key_entry'):
             self.api_key_entry.delete(0, tk.END)
         
+        # Clear Kling API key entries
+        if hasattr(self, 'kling_access_key_entry'):
+            self.kling_access_key_entry.delete(0, tk.END)
+        if hasattr(self, 'kling_secret_key_entry'):
+            self.kling_secret_key_entry.delete(0, tk.END)
+        
         # Update API status
         if hasattr(self, 'api_status_label'):
             self.api_status_label.config(text="Not configured", fg=self.colors['error'])
+        if hasattr(self, 'kling_api_status_label'):
+            self.kling_api_status_label.config(text="Not configured", fg=self.colors['error'])
         
         # Update status indicator
         self.status_indicator.config(text="⚠️ Offline", fg=self.colors['error'])
@@ -762,6 +884,9 @@ class AccountTab:
                 text="❌ Not configured",
                 fg=self.colors['error']
             )
+        
+        # Also update Kling API status
+        self.update_kling_api_status()
     
     def reload_main_app_api_key(self):
         """Notify main app to reload API key"""
@@ -782,3 +907,132 @@ class AccountTab:
                 print("API key cleared from main app memory")
             except Exception as e:
                 print(f"Error clearing API key from main app: {e}")
+    
+    # Kling AI API Key Management Methods
+    def save_kling_api_keys(self):
+        """Save the Kling AI API keys"""
+        access_key = self.kling_access_key_entry.get().strip()
+        secret_key = self.kling_secret_key_entry.get().strip()
+        
+        if not access_key or not secret_key:
+            messagebox.showerror("Error", "Please enter both Access Key and Secret Key")
+            return
+        
+        # Basic validation
+        if len(access_key) < 20 or len(secret_key) < 20:
+            messagebox.showerror("Error", "API keys appear to be too short. Please check your keys.")
+            return
+        
+        # Save to user manager
+        if (self.user_manager.save_api_key("kling_access_key", access_key) and
+            self.user_manager.save_api_key("kling_secret_key", secret_key)):
+            messagebox.showinfo("Success", "Kling AI API keys saved successfully!")
+            self.update_kling_api_status()
+            self.kling_access_key_entry.delete(0, tk.END)  # Clear input for security
+            self.kling_secret_key_entry.delete(0, tk.END)  # Clear input for security
+            
+            # Notify main app to reload Kling API keys
+            self.reload_main_app_kling_keys()
+        else:
+            messagebox.showerror("Error", "Failed to save Kling AI API keys")
+    
+    def test_kling_api_keys(self):
+        """Test the Kling AI API keys"""
+        access_key = self.kling_access_key_entry.get().strip()
+        secret_key = self.kling_secret_key_entry.get().strip()
+        
+        if not access_key or not secret_key:
+            # Try to get saved API keys
+            access_key = self.user_manager.get_api_key("kling_access_key")
+            secret_key = self.user_manager.get_api_key("kling_secret_key")
+            if not access_key or not secret_key:
+                messagebox.showerror("Error", "No Kling API keys to test. Please enter or save API keys first.")
+                return
+        
+        # Test the connection
+        try:
+            from kling_client import KlingClient
+            client = KlingClient(access_key, secret_key)
+            
+            # Show testing dialog
+            test_dialog = tk.Toplevel(self.parent_frame)
+            test_dialog.title("Testing Kling AI Connection")
+            test_dialog.geometry("300x100")
+            test_dialog.resizable(False, False)
+            test_dialog.transient(self.parent_frame)
+            test_dialog.grab_set()
+            test_dialog.configure(bg=self.colors['bg_dark'])
+            
+            # Center dialog
+            test_dialog.update_idletasks()
+            x = (test_dialog.winfo_screenwidth() // 2) - (300 // 2)
+            y = (test_dialog.winfo_screenheight() // 2) - (100 // 2)
+            test_dialog.geometry(f"300x100+{x}+{y}")
+            
+            tk.Label(test_dialog, text="Testing Kling AI connection...", 
+                    font=('Arial', 12), fg=self.colors['text_white'], 
+                    bg=self.colors['bg_dark']).pack(expand=True)
+            
+            test_dialog.update()
+            
+            # Test connection
+            success = client.test_connection()
+            test_dialog.destroy()
+            
+            if success:
+                messagebox.showinfo("Test Result", "✅ Kling AI API keys are valid and connection successful!\n\nThe keys are properly configured and ready for video generation.")
+            else:
+                messagebox.showerror("Test Result", "❌ Kling AI API connection failed.\n\nThis could be due to:\n• Invalid API keys\n• Network connectivity issues\n• API service temporarily unavailable\n\nPlease check your keys and try again.")
+                
+        except ImportError:
+            messagebox.showerror("Error", "Kling AI client not available. Please check installation.")
+        except Exception as e:
+            messagebox.showerror("Test Result", f"❌ Connection test failed: {str(e)}")
+    
+    def clear_kling_api_keys(self):
+        """Clear the Kling AI API keys"""
+        if messagebox.askyesno("Confirm", "Are you sure you want to delete the saved Kling AI API keys?"):
+            if (self.user_manager.delete_api_key("kling_access_key") and
+                self.user_manager.delete_api_key("kling_secret_key")):
+                messagebox.showinfo("Success", "Kling AI API keys deleted successfully!")
+                self.kling_access_key_entry.delete(0, tk.END)
+                self.kling_secret_key_entry.delete(0, tk.END)
+                self.update_kling_api_status()
+                
+                # Clear API keys from main app memory as well
+                self.clear_main_app_kling_keys()
+            else:
+                messagebox.showerror("Error", "Failed to delete Kling AI API keys")
+    
+    def update_kling_api_status(self):
+        """Update Kling AI API key status display"""
+        if (self.user_manager.has_api_key("kling_access_key") and 
+            self.user_manager.has_api_key("kling_secret_key")):
+            self.kling_api_status_label.config(
+                text="✅ Configured",
+                fg=self.colors['success']
+            )
+        else:
+            self.kling_api_status_label.config(
+                text="❌ Not configured",
+                fg=self.colors['error']
+            )
+    
+    def reload_main_app_kling_keys(self):
+        """Notify main app to reload Kling API keys"""
+        if self.main_app and hasattr(self.main_app, 'load_kling_api_keys'):
+            try:
+                self.main_app.load_kling_api_keys(show_log=False)
+                print("Kling API keys reloaded in main app")
+            except Exception as e:
+                print(f"Error reloading Kling API keys in main app: {e}")
+    
+    def clear_main_app_kling_keys(self):
+        """Clear Kling API keys from main app memory"""
+        if self.main_app and hasattr(self.main_app, 'kling_access_key_var'):
+            try:
+                self.main_app.kling_access_key_var.set("")
+                self.main_app.kling_secret_key_var.set("")
+                print("Kling API keys cleared from main app memory")
+            except Exception as e:
+                print(f"Error clearing Kling API keys from main app: {e}")

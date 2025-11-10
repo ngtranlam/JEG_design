@@ -17,7 +17,7 @@ class UserManager:
     
     # Pricing configuration
     IMAGE_PROCESSING_COST = 0.0203  # $0.0203 per image processing
-    VIDEO_GENERATION_COST = 6.4     # $6.4 per video generation
+    VIDEO_GENERATION_COST = 0.7     # $0.7 per video generation
     
     # Session configuration
     SESSION_DURATION_HOURS = 5  # Login session lasts for 5 hours
