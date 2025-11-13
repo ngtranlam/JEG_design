@@ -248,7 +248,6 @@ jeg-design-extract/
 ├── gemini_client.py           # Gemini AI integration
 ├── photoroom_client.py        # PhotoRoom API client
 ├── upscayl_processor.py       # Image upscaling
-├── api_client.py              # General API utilities
 ├── upscayl_core/              # Upscaling models and binaries
 ├── .github/workflows/         # CI/CD pipelines
 ├── requirements.txt           # Python dependencies

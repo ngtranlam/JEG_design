@@ -12,7 +12,9 @@ class PhotoRoomClient:
     Client for PhotoRoom API background removal service
     """
     
-    def __init__(self, api_key: str = "sk_pr_default_d640925faec72eafc2f871b68ef6a6a2354ccd30"):
+    def __init__(self, api_key: str = None):
+        if not api_key:
+            raise ValueError("PhotoRoom API key is required. Please configure your API key in the Account tab.")
         self.api_key = api_key
         self.base_url = "https://sdk.photoroom.com/v1/segment"
         

@@ -199,7 +199,6 @@ def check_required_files():
         'account_tab.py',
         'upscayl_processor.py',
         'image_processor.py',
-        'api_client.py',
     ]
     
     missing_files = []

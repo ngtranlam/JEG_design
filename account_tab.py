@@ -532,6 +532,95 @@ class AccountTab:
                                    fg=self.colors['text_gray'],
                                    bg=self.colors['bg_light'])
         kling_help_label.pack(anchor='w', pady=(5, 0))
+        
+        # Separator
+        separator2 = tk.Frame(content_frame, bg=self.colors['text_gray'], height=1)
+        separator2.pack(fill=tk.X, pady=(15, 15))
+        
+        # PhotoRoom API Key section
+        photoroom_frame = tk.Frame(content_frame, bg=self.colors['bg_light'])
+        photoroom_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        tk.Label(photoroom_frame,
+                text="PhotoRoom API Key (for Background Removal):",
+                font=('Arial', 10, 'bold'),
+                fg=self.colors['text_white'],
+                bg=self.colors['bg_light']).pack(side=tk.LEFT)
+        
+        # PhotoRoom API Key status
+        self.photoroom_api_status_label = tk.Label(photoroom_frame,
+                                                  text="Not configured",
+                                                  font=('Arial', 10),
+                                                  fg=self.colors['error'],
+                                                  bg=self.colors['bg_light'])
+        self.photoroom_api_status_label.pack(side=tk.RIGHT)
+        
+        # PhotoRoom API Key input frame
+        photoroom_input_frame = tk.Frame(content_frame, bg=self.colors['bg_light'])
+        photoroom_input_frame.pack(fill=tk.X, pady=(5, 10))
+        
+        # PhotoRoom API Key entry
+        self.photoroom_api_key_entry = tk.Entry(photoroom_input_frame,
+                                               font=('Arial', 10),
+                                               bg='white',
+                                               fg='black',
+                                               show='*',  # Hide API key like password
+                                               width=50)
+        self.photoroom_api_key_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
+        
+        # Buttons frame for PhotoRoom API
+        photoroom_buttons_frame = tk.Frame(photoroom_input_frame, bg=self.colors['bg_light'])
+        photoroom_buttons_frame.pack(side=tk.RIGHT)
+        
+        # Save button
+        photoroom_save_btn = tk.Button(photoroom_buttons_frame,
+                                      text="💾 Save",
+                                      command=self.save_photoroom_api_key,
+                                      font=('Arial', 9, 'bold'),
+                                      bg=self.colors['success'],
+                                      fg='black',
+                                      relief=tk.FLAT,
+                                      bd=0,
+                                      padx=10,
+                                      pady=5,
+                                      cursor='hand2')
+        photoroom_save_btn.pack(side=tk.LEFT, padx=(0, 5))
+        
+        # Test button
+        photoroom_test_btn = tk.Button(photoroom_buttons_frame,
+                                      text="🧪 Test",
+                                      command=self.test_photoroom_api_key,
+                                      font=('Arial', 9, 'bold'),
+                                      bg=self.colors['button_bg'],
+                                      fg='black',
+                                      relief=tk.FLAT,
+                                      bd=0,
+                                      padx=10,
+                                      pady=5,
+                                      cursor='hand2')
+        photoroom_test_btn.pack(side=tk.LEFT, padx=(0, 5))
+        
+        # Clear button
+        photoroom_clear_btn = tk.Button(photoroom_buttons_frame,
+                                       text="🗑️ Clear",
+                                       command=self.clear_photoroom_api_key,
+                                       font=('Arial', 9, 'bold'),
+                                       bg=self.colors['error'],
+                                       fg='black',
+                                       relief=tk.FLAT,
+                                       bd=0,
+                                       padx=10,
+                                       pady=5,
+                                       cursor='hand2')
+        photoroom_clear_btn.pack(side=tk.LEFT)
+        
+        # Help text for PhotoRoom API
+        photoroom_help_label = tk.Label(content_frame,
+                                       text="💡 Get your PhotoRoom API key from: https://www.photoroom.com/api/",
+                                       font=('Arial', 9, 'italic'),
+                                       fg=self.colors['text_gray'],
+                                       bg=self.colors['bg_light'])
+        photoroom_help_label.pack(anchor='w', pady=(5, 0))
     
     def create_actions_section(self, parent):
         """Create actions section"""
@@ -808,11 +897,17 @@ class AccountTab:
         if hasattr(self, 'kling_secret_key_entry'):
             self.kling_secret_key_entry.delete(0, tk.END)
         
+        # Clear PhotoRoom API key entry
+        if hasattr(self, 'photoroom_api_key_entry'):
+            self.photoroom_api_key_entry.delete(0, tk.END)
+        
         # Update API status
         if hasattr(self, 'api_status_label'):
             self.api_status_label.config(text="Not configured", fg=self.colors['error'])
         if hasattr(self, 'kling_api_status_label'):
             self.kling_api_status_label.config(text="Not configured", fg=self.colors['error'])
+        if hasattr(self, 'photoroom_api_status_label'):
+            self.photoroom_api_status_label.config(text="Not configured", fg=self.colors['error'])
         
         # Update status indicator
         self.status_indicator.config(text="⚠️ Offline", fg=self.colors['error'])
@@ -887,6 +982,9 @@ class AccountTab:
         
         # Also update Kling API status
         self.update_kling_api_status()
+        
+        # Also update PhotoRoom API status
+        self.update_photoroom_api_status()
     
     def reload_main_app_api_key(self):
         """Notify main app to reload API key"""
@@ -1036,3 +1134,122 @@ class AccountTab:
                 print("Kling API keys cleared from main app memory")
             except Exception as e:
                 print(f"Error clearing Kling API keys from main app: {e}")
+    
+    # PhotoRoom API Key Management Methods
+    def save_photoroom_api_key(self):
+        """Save the PhotoRoom API key"""
+        api_key = self.photoroom_api_key_entry.get().strip()
+        
+        if not api_key:
+            messagebox.showerror("Error", "Please enter a PhotoRoom API key")
+            return
+        
+        if not api_key.startswith("sk_pr_"):
+            messagebox.showerror("Error", "Invalid PhotoRoom API key format. It should start with 'sk_pr_'")
+            return
+        
+        # Save to user manager
+        if self.user_manager.save_api_key("photoroom", api_key):
+            messagebox.showinfo("Success", "PhotoRoom API key saved successfully!")
+            self.update_photoroom_api_status()
+            self.photoroom_api_key_entry.delete(0, tk.END)  # Clear input for security
+            
+            # Notify main app to reload PhotoRoom API key
+            self.reload_main_app_photoroom_key()
+        else:
+            messagebox.showerror("Error", "Failed to save PhotoRoom API key")
+    
+    def test_photoroom_api_key(self):
+        """Test the PhotoRoom API key"""
+        api_key = self.photoroom_api_key_entry.get().strip()
+        
+        if not api_key:
+            # Try to get saved API key
+            api_key = self.user_manager.get_api_key("photoroom")
+            if not api_key:
+                messagebox.showerror("Error", "No PhotoRoom API key to test. Please enter or save an API key first.")
+                return
+        
+        # Test the connection
+        try:
+            from photoroom_client import PhotoRoomClient
+            client = PhotoRoomClient(api_key)
+            
+            # Show testing dialog
+            test_dialog = tk.Toplevel(self.parent_frame)
+            test_dialog.title("Testing PhotoRoom Connection")
+            test_dialog.geometry("300x100")
+            test_dialog.resizable(False, False)
+            test_dialog.transient(self.parent_frame)
+            test_dialog.grab_set()
+            test_dialog.configure(bg=self.colors['bg_dark'])
+            
+            # Center dialog
+            test_dialog.update_idletasks()
+            x = (test_dialog.winfo_screenwidth() // 2) - (300 // 2)
+            y = (test_dialog.winfo_screenheight() // 2) - (100 // 2)
+            test_dialog.geometry(f"300x100+{x}+{y}")
+            
+            tk.Label(test_dialog, text="Testing PhotoRoom connection...", 
+                    font=('Arial', 12), fg=self.colors['text_white'], 
+                    bg=self.colors['bg_dark']).pack(expand=True)
+            
+            test_dialog.update()
+            
+            # Test connection
+            success = client.test_connection()
+            test_dialog.destroy()
+            
+            if success:
+                messagebox.showinfo("Test Result", "✅ PhotoRoom API key is valid and connection successful!\n\nThe key is properly configured and ready for background removal.")
+            else:
+                messagebox.showerror("Test Result", "❌ PhotoRoom API connection failed.\n\nThis could be due to:\n• Invalid API key\n• Network connectivity issues\n• API service temporarily unavailable\n\nPlease check your key and try again.")
+                
+        except ImportError:
+            messagebox.showerror("Error", "PhotoRoom client not available. Please check installation.")
+        except Exception as e:
+            messagebox.showerror("Test Result", f"❌ Connection test failed: {str(e)}")
+    
+    def clear_photoroom_api_key(self):
+        """Clear the PhotoRoom API key"""
+        if messagebox.askyesno("Confirm", "Are you sure you want to delete the saved PhotoRoom API key?"):
+            if self.user_manager.delete_api_key("photoroom"):
+                messagebox.showinfo("Success", "PhotoRoom API key deleted successfully!")
+                self.photoroom_api_key_entry.delete(0, tk.END)
+                self.update_photoroom_api_status()
+                
+                # Clear API key from main app memory as well
+                self.clear_main_app_photoroom_key()
+            else:
+                messagebox.showerror("Error", "Failed to delete PhotoRoom API key")
+    
+    def update_photoroom_api_status(self):
+        """Update PhotoRoom API key status display"""
+        if self.user_manager.has_api_key("photoroom"):
+            self.photoroom_api_status_label.config(
+                text="✅ Configured",
+                fg=self.colors['success']
+            )
+        else:
+            self.photoroom_api_status_label.config(
+                text="❌ Not configured",
+                fg=self.colors['error']
+            )
+    
+    def reload_main_app_photoroom_key(self):
+        """Notify main app to reload PhotoRoom API key"""
+        if self.main_app and hasattr(self.main_app, 'load_photoroom_api_key'):
+            try:
+                self.main_app.load_photoroom_api_key(show_log=False)
+                print("PhotoRoom API key reloaded in main app")
+            except Exception as e:
+                print(f"Error reloading PhotoRoom API key in main app: {e}")
+    
+    def clear_main_app_photoroom_key(self):
+        """Clear PhotoRoom API key from main app memory"""
+        if self.main_app and hasattr(self.main_app, 'photoroom_api_key_var'):
+            try:
+                self.main_app.photoroom_api_key_var.set("")
+                print("PhotoRoom API key cleared from main app memory")
+            except Exception as e:
+                print(f"Error clearing PhotoRoom API key from main app: {e}")

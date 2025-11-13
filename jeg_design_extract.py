@@ -234,7 +234,6 @@ MOCKUP_PROMPTS_PRINT_BACK_TIKTOK = {
     "Mug": "Vẽ lại thiết kế trên mockup ly sứ, nền trắng hoàn toàn, ánh sáng đều, không có vật trang trí. Mockup phù hợp để đăng bán trên TikTok Shop. Ảnh kích thước 1024x1024."
 }
 
-from api_client import fetch_mockup_templates, upload_image_to_imgbb, render_mockup
 from upscayl_processor import UpscaylProcessor
 from gemini_client import GeminiClient
 from photoroom_client import PhotoRoomClient
@@ -3050,6 +3049,9 @@ CHỈ VIẾT SCRIPT CHI TIẾT, KHÔNG VIẾT GÌ KHÁC."""
         self.kling_access_key_var = tk.StringVar(value="")
         self.kling_secret_key_var = tk.StringVar(value="")
         
+        # PhotoRoom API key variable for background removal
+        self.photoroom_api_key_var = tk.StringVar(value="")
+        
         
 
         # Row 3: Processing Type
@@ -3328,8 +3330,12 @@ CHỈ VIẾT SCRIPT CHI TIẾT, KHÔNG VIẾT GÌ KHÁC."""
             
             if use_photoroom:
                 update_progress(30, "Step 2/5: PhotoRoom API background removal...")
-                photoroom_client = PhotoRoomClient()
-                photoroom_result = photoroom_client.remove_background(removed_bg)
+                try:
+                    photoroom_client = self.get_photoroom_client()
+                    photoroom_result = photoroom_client.remove_background(removed_bg)
+                except ValueError as e:
+                    self.add_log(f"⚠️ PhotoRoom API error: {str(e)}")
+                    photoroom_result = None
                 
                 if photoroom_result is not None:
                     removed_bg = photoroom_result
@@ -3563,8 +3569,12 @@ CHỈ VIẾT SCRIPT CHI TIẾT, KHÔNG VIẾT GÌ KHÁC."""
             # Debug: Log image info before PhotoRoom
             self.add_log(f"🔍 Before PhotoRoom: Image shape {embroidery_design.shape}, dtype {embroidery_design.dtype}")
             
-            photoroom_client = PhotoRoomClient()
-            photoroom_result = photoroom_client.remove_background(embroidery_design)
+            try:
+                photoroom_client = self.get_photoroom_client()
+                photoroom_result = photoroom_client.remove_background(embroidery_design)
+            except ValueError as e:
+                self.add_log(f"⚠️ PhotoRoom API error: {str(e)}")
+                photoroom_result = None
             
             if photoroom_result is not None:
                 self.add_log("✅ PhotoRoom background removal completed")
@@ -3858,8 +3868,12 @@ CHỈ VIẾT SCRIPT CHI TIẾT, KHÔNG VIẾT GÌ KHÁC."""
                 
                 # STEP 3: PHOTOROOM API BACKGROUND REMOVAL
                 update_progress(40, f"Step 3/6: Removing background with PhotoRoom API...")
-                photoroom_client = PhotoRoomClient()
-                photoroom_result = photoroom_client.remove_background(redesigned_image)
+                try:
+                    photoroom_client = self.get_photoroom_client()
+                    photoroom_result = photoroom_client.remove_background(redesigned_image)
+                except ValueError as e:
+                    self.add_log(f"⚠️ PhotoRoom API error: {str(e)}")
+                    photoroom_result = None
                 
                 if photoroom_result is not None:
                     redesigned_image = photoroom_result
@@ -4254,6 +4268,34 @@ CHỈ VIẾT SCRIPT CHI TIẾT, KHÔNG VIẾT GÌ KHÁC."""
             if show_log:
                 self.add_log(f"❌ Error loading Kling API keys: {e}")
             print(f"Debug: Error loading Kling API keys: {e}")
+    
+    def load_photoroom_api_key(self, show_log=True):
+        """Load PhotoRoom API key from user manager"""
+        try:
+            api_key = self.user_manager.get_api_key("photoroom")
+            
+            if api_key:
+                self.photoroom_api_key_var.set(api_key)
+                if show_log:
+                    self.add_log("🔑 PhotoRoom API key loaded successfully")
+                print(f"Debug: PhotoRoom API key loaded successfully, length: {len(api_key)}")
+            else:
+                self.photoroom_api_key_var.set("")
+                if show_log:
+                    self.add_log("⚠️ No PhotoRoom API key configured. Please set up in Account tab.")
+                print("Debug: No PhotoRoom API key found in storage")
+        except Exception as e:
+            self.photoroom_api_key_var.set("")
+            if show_log:
+                self.add_log(f"❌ Error loading PhotoRoom API key: {e}")
+            print(f"Debug: Error loading PhotoRoom API key: {e}")
+    
+    def get_photoroom_client(self):
+        """Get PhotoRoom client with proper API key validation"""
+        api_key = self.photoroom_api_key_var.get().strip()
+        if not api_key:
+            raise ValueError("PhotoRoom API key is not configured. Please set up your API key in the Account tab.")
+        return PhotoRoomClient(api_key)
         
     def verify_dpi(self, file_path):
         """Verify that saved file has correct DPI"""
@@ -5217,6 +5259,7 @@ CHỈ VIẾT SCRIPT CHI TIẾT, KHÔNG VIẾT GÌ KHÁC."""
             # Load API keys after successful login
             self.load_api_key()
             self.load_kling_api_keys()
+            self.load_photoroom_api_key()
         else:
             # Login cancelled, close application
             self.add_log("Login required. Closing application...")
