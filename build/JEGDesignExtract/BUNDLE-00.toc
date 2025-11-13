@@ -1,4 +1,0 @@
-([('JEGDesignExtract',
-   '/Users/lamnguyen.dev/Documents/JEG '
-   'Tasks/Extension/Clone_Design/dist/JEGDesignExtract',
-   'EXECUTABLE')],)
